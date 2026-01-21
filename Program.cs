@@ -1,6 +1,8 @@
+using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 using Microsoft.IdentityModel.Tokens;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using WBM_API.Controllers;
 using WBM_API.WBM_API_DB;
@@ -33,7 +35,26 @@ builder.Services.AddAuthentication(options =>
     })
 
     // --- Azure AD Authentication ---
-    .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("Azure"), "Azure");
+    .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("Azure"), "Azure")
+    // --- mTLS Authentication ---
+    .AddCertificate("MTLS", options =>
+    {
+        options.AllowedCertificateTypes = CertificateTypes.All;
+        options.RevocationMode = X509RevocationMode.NoCheck;
+        options.Events = new CertificateAuthenticationEvents
+        {
+            OnCertificateValidated = context =>
+            {
+                context.Success();
+                return Task.CompletedTask;
+            },
+            OnAuthenticationFailed = context =>
+            {
+                context.Fail("Invalid client certificate");
+                return Task.CompletedTask;
+            }
+        };
+    });
 
 
 
