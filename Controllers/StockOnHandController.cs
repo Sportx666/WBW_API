@@ -96,6 +96,42 @@ public class StockOnHandController : ControllerBase
     }
 
     [HttpPost]
+    [Route("api/StockOnHandSaveList")]
+    public async Task<IActionResult> SaveList()
+    {
+        string APIEndPointName = "StockOnHandSaveList";
+        wbm_common.DataObjects.Log.dbRow apiTransactionLog = new wbm_common.DataObjects.Log.dbRow();
+
+        try
+        {
+            APILoggingReturn APICommonReturn = await CommonAPILogging(User, Request, APIEndPointName, _WBMDB, apiTransactionLog, "Save_IsValid", "Save_ValidationErrors", new wbm_common.DataObjects.StockOnHand());
+            apiTransactionLog = APICommonReturn.log;
+            if (APICommonReturn.errorCode == 400)
+                return Helpers.ActionResultUtils.Send400Response(new List<ErrorMessage> { new ErrorMessage { Error = APICommonReturn.error } }, false, apiTransactionLog, _WBMDB);
+            else if (APICommonReturn.errorCode == 500)
+                return Helpers.ActionResultUtils.Send500Response(new List<ErrorMessage> { new ErrorMessage { Error = APICommonReturn.error } }, false, apiTransactionLog, _WBMDB);
+
+            StockOnHandHelper.StockOnHandSaveList saveClass = new StockOnHandHelper.StockOnHandSaveList((wbm_common.DataObjects.StockOnHand)APICommonReturn.genericObject, apiTransactionLog.UserID, _WBMDB);
+
+            if (saveClass.Save())
+                return Helpers.ActionResultUtils.Send200Response((wbm_common.DataObjects.StockOnHand)APICommonReturn.genericObject, apiTransactionLog, _WBMDB);
+            else
+            {
+                if (saveClass.ReturnState == 400)
+                    return Helpers.ActionResultUtils.Send400Response(new List<ErrorMessage> { new ErrorMessage { Error = saveClass.ErrorMessage } }, false, apiTransactionLog, _WBMDB);
+                else
+                    return Helpers.ActionResultUtils.Send500Response(new List<ErrorMessage> { new ErrorMessage { Error = saveClass.ErrorMessage } }, false, apiTransactionLog, _WBMDB);
+
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.Error(APIEndPointName + " : " + ex);
+            return Helpers.ActionResultUtils.Send400Response(new List<ErrorMessage> { new ErrorMessage { Error = ex.Message } }, false, apiTransactionLog, _WBMDB);
+        }
+    }
+
+    [HttpPost]
     [Route("api/StockOnHandExcelReport")]
     public async Task<IActionResult> ExcelReport()
     {

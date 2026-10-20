@@ -334,5 +334,89 @@ namespace WBM_API.Helpers
                 }
             }
         }
+
+        // Saves a list of new StockOnHand rows in one call, re-using StockOnHandSave for each row.
+        // All rows are saved or none are.
+        public class StockOnHandSaveList
+        {
+            private wbm_common.DataObjects.StockOnHand saveObject { get; set; }
+
+            public string ErrorMessage { get; set; }
+
+            public Boolean SavedSuccessfully { get; set; }
+
+            public int ReturnState { get; set; }
+
+            private static Logger logger = LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
+
+            private readonly WBMDatabase _WBMDB;
+
+            public int UserID { get; set; }
+
+            public StockOnHandSaveList(wbm_common.DataObjects.StockOnHand saveObject, int UserID, WBMDatabase wBMDB)
+            {
+                this.saveObject = saveObject;
+                _WBMDB = wBMDB;
+                this.UserID = UserID;
+
+                SavedSuccessfully = false;
+            }
+
+            public Boolean Save()
+            {
+                if (saveObject.ListdbRow_instance == null || saveObject.ListdbRow_instance.Count() == 0)
+                {
+                    ErrorMessage = "No StockOnHand rows to save";
+                    ReturnState = 400;
+                    return false;
+                }
+
+                // Updates open their own transaction in StockOnHandSave, so only new rows are allowed here
+                if (saveObject.ListdbRow_instance.Any(x => x == null || x.ID > 0))
+                {
+                    ErrorMessage = "StockOnHandSaveList only accepts new rows";
+                    ReturnState = 400;
+                    return false;
+                }
+
+                using var transaction = _WBMDB.dbContext.Database.BeginTransaction();
+
+                transaction.CreateSavepoint("Start");
+
+                Boolean ErrorOccured = false;
+                foreach (wbm_common.DataObjects.StockOnHand.dbRow saveRow in saveObject.ListdbRow_instance)
+                {
+                    wbm_common.DataObjects.StockOnHand rowObject = new wbm_common.DataObjects.StockOnHand();
+                    rowObject.dbRow_instance = saveRow;
+                    rowObject.CalledFrom = saveObject.CalledFrom;
+                    rowObject.ChangedTime = saveObject.ChangedTime;
+
+                    StockOnHandSave saveClass = new StockOnHandSave(rowObject, UserID, _WBMDB);
+                    if (!saveClass.Save())
+                    {
+                        ErrorOccured = true;
+                        ErrorMessage = "StockOnHand row (LocationID " + saveRow.LocationID + ", StockID " + saveRow.StockID + ") : " + saveClass.ErrorMessage;
+                        ReturnState = saveClass.ReturnState == 400 ? 400 : 500;
+                        break;
+                    }
+                }
+
+                if (!ErrorOccured)
+                {
+                    transaction.Commit();
+                    SavedSuccessfully = true;
+                    return true;
+                }
+                else
+                {
+                    transaction.RollbackToSavepoint("Start");
+                    // Drop the rolled back rows from the context so the API log save afterwards doesn't try to insert them again
+                    _WBMDB.dbContext.ChangeTracker.Clear();
+                    logger.Error("StockOnHandSaveList : " + ErrorMessage);
+                    SavedSuccessfully = false;
+                    return false;
+                }
+            }
+        }
     }
 }
