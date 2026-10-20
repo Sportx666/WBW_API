@@ -1,10 +1,13 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Azure.Core;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NLog.Web;
+using System.Threading.Tasks;
 using WBM_API.Helpers;
-using WBM_API.Models.ResponseObjects;
 using WBM_API.WBM_API_DB;
+using wbm_common.ComplexDataObjects;
+using wbm_common.NonDatabaseObjects;
 using static WBM_API.Helpers.ControllerHelper;
 
 namespace WBM_API.Controllers;
@@ -22,11 +25,11 @@ public class ChangeLogController : ControllerBase
         _WBMDB = wBMDB;
     }
 
-    [HttpGet]
-    [Route("api/GetChangeLog")]
-    public async Task<IActionResult> GetChangeLog()
+    [HttpPost]
+    [Route("api/ChangeLog")]
+    public async Task<IActionResult> ChangeLog()
     {
-        string APIEndPointName = "GetChangeLog";
+        string APIEndPointName = "ChangeLog";
         string error;
         wbm_common.DataObjects.Log.dbRow apiTransactionLog = new wbm_common.DataObjects.Log.dbRow();
         try
@@ -38,8 +41,17 @@ public class ChangeLogController : ControllerBase
             else if (APICommonReturn.errorCode == 500)
                 return Helpers.ActionResultUtils.Send500Response(new List<ErrorMessage> { new ErrorMessage { Error = APICommonReturn.error } }, false, apiTransactionLog, _WBMDB);
 
-            // Do the search
-            return GetChangeLog_DoWork((wbm_common.ComplexDataObjects.ChangeHeaderAndDetailLog)APICommonReturn.genericObject, apiTransactionLog);
+
+            ChangeHeaderAndDetailLog _request = (wbm_common.ComplexDataObjects.ChangeHeaderAndDetailLog)APICommonReturn.genericObject;
+
+            Result<wbm_common.ComplexDataObjects.ChangeHeaderAndDetailLog> changeLogResult = await ChangeLogHelper.GetChangeLog(_request.ChangeHeaderTableID, _request.RecordID, _WBMDB);
+
+            if (changeLogResult.IsSuccess)
+                return Helpers.ActionResultUtils.Send200Response(changeLogResult.Value, apiTransactionLog, _WBMDB);
+            else if (changeLogResult.IsFailure)
+                return Helpers.ActionResultUtils.Send400Response(new List<ErrorMessage> { new ErrorMessage { Error = changeLogResult.ErrorMessage } }, false, apiTransactionLog, _WBMDB);
+            else
+                return Helpers.ActionResultUtils.Send500Response(new List<ErrorMessage> { new ErrorMessage { Error = changeLogResult.ErrorMessage } }, false, apiTransactionLog, _WBMDB);
         }
         catch (Exception ex)
         {
@@ -47,21 +59,4 @@ public class ChangeLogController : ControllerBase
             return Helpers.ActionResultUtils.Send400Response(new List<ErrorMessage> { new ErrorMessage { Error = ex.Message } }, false, apiTransactionLog, _WBMDB);
         }
     }
-
-    private IActionResult GetChangeLog_DoWork(wbm_common.ComplexDataObjects.ChangeHeaderAndDetailLog _request, wbm_common.DataObjects.Log.dbRow apiTransactionLog)
-    {
-        // Get list of ChangeHeader records where the ChangeHeaderTableID and ID matches
-        // Then get a list of all the changeDetail records who have the same ChangeHeaderID as the ChangeHeader records found
-        // Then create ChangeEvents and populate ListChangeEvent for the return
-
-        _request.ListChangeEvent = new List<wbm_common.ComplexDataObjects.ChangeHeaderAndDetailLog.ChangeEvent>();
-
-        Boolean dbErrorOccured = false;
-
-        if (!dbErrorOccured)
-            return Helpers.ActionResultUtils.Send200Response(_request, apiTransactionLog, _WBMDB);
-        else
-            return Helpers.ActionResultUtils.Send500Response(new List<ErrorMessage> { new ErrorMessage { Error = ErrorCodeHelper.ErrorCodeAsString(ErrorCodes.GeneralDB) } }, false, apiTransactionLog, _WBMDB);
-    }
-
 }

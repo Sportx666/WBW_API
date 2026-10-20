@@ -3,7 +3,7 @@ using NLog;
 using NLog.Web;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
 using wbm_common.DataObjects;
 
@@ -17,13 +17,13 @@ namespace WBM_API.Helpers.Excel
 
         private readonly WBMDatabase _WBMDB;
 
-        public List<wbm_common.DataObjects.Company.dbRow> companies = null;
-        public List<wbm_common.DataObjects.Site.dbRow> sites = null;
+        public List<wbm_common.DataObjects.Company.dbRowExtended> companies = null;
+        public List<wbm_common.DataObjects.Site.dbRowExtended> sites = null;
         public List<wbm_common.DataObjects.Security_User.dbRow> users = null;
         public List<wbm_common.DataObjects.Owner.dbRow> owners = null;
-        public List<wbm_common.DataObjects.StockRateCategory.dbRow> stockRateCategories = null;
+        public List<wbm_common.DataObjects.StockRateCategory.dbRowExtended> stockRateCategories = null;
         public List<wbm_common.DataObjects.PalletStorageType.dbRow> palletStorageTypes = null;
-        public List<wbm_common.DataObjects.Stock.dbRow> Stocks = null;
+        public List<wbm_common.DataObjects.Stock.dbRowExtended> Stocks = null;
         public Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> CallBackStatusFunction { get; set; }
         private IHubCallerClients Clients;
         public wbm_common.DataObjects.LongRunProcessHeader.dbRow lrph { get; set; }
@@ -77,7 +77,7 @@ namespace WBM_API.Helpers.Excel
         private async Task<bool> GetData()
         {
 
-            Result<List<wbm_common.DataObjects.Stock.dbRow>> rc = await StockHelper.ExecuteSearch(StockSearchData, _WBMDB);
+            Result<List<wbm_common.DataObjects.Stock.dbRowExtended>> rc = await StockHelper.ExecuteSearch(StockSearchData, _WBMDB);
 
             if (rc.IsFailure)
             {
@@ -120,7 +120,7 @@ namespace WBM_API.Helpers.Excel
 
             if (ListStockRateCategories.Count > 0)
             {
-                Result<List<wbm_common.DataObjects.StockRateCategory.dbRow>> stockratecategoriesResults = _WBMDB.StockRateCategory_ListByListIDs(ListStockRateCategories).GetAwaiter().GetResult();
+                Result<List<wbm_common.DataObjects.StockRateCategory.dbRowExtended>> stockratecategoriesResults = _WBMDB.StockRateCategory_ListByListIDs(ListStockRateCategories).GetAwaiter().GetResult();
                 if (stockratecategoriesResults.IsFailure || stockratecategoriesResults.IsException)
                 {
                     ErrorMessage = ErrorCodes.GeneralDB.ToString();
@@ -131,7 +131,7 @@ namespace WBM_API.Helpers.Excel
 
             if (ListCompanyIDs.Count > 0)
             {
-                Result<List<wbm_common.DataObjects.Company.dbRow>> companiesResults = _WBMDB.Company_ListByListIDs(ListCompanyIDs).GetAwaiter().GetResult();
+                Result<List<wbm_common.DataObjects.Company.dbRowExtended>> companiesResults = _WBMDB.Company_ListByListIDs(ListCompanyIDs).GetAwaiter().GetResult();
                 if (companiesResults.IsFailure || companiesResults.IsException)
                 {
                     ErrorMessage = ErrorCodes.GeneralDB.ToString();
@@ -142,7 +142,7 @@ namespace WBM_API.Helpers.Excel
 
             if (ListSiteID.Count > 0)
             {
-                Result<List<wbm_common.DataObjects.Site.dbRow>> sitesResults = _WBMDB.Site_ListByListIDs(ListSiteID).GetAwaiter().GetResult();
+                Result<List<wbm_common.DataObjects.Site.dbRowExtended>> sitesResults = _WBMDB.Site_ListByListIDs(ListSiteID).GetAwaiter().GetResult();
                 if (sitesResults.IsFailure || sitesResults.IsException)
                 {
                     ErrorMessage = ErrorCodes.GeneralDB.ToString();
@@ -193,14 +193,18 @@ namespace WBM_API.Helpers.Excel
             StockWS.Column(18).Width = 25;
             StockWS.Column(19).Width = 25;
             StockWS.Column(20).Width = 25;
-            StockWS.Column(20).Style.Numberformat.Format = "dd/mm/yy HH:mm";
             StockWS.Column(21).Width = 25;
             StockWS.Column(22).Width = 25;
+            StockWS.Column(22).Style.Numberformat.Format = "dd/mm/yy HH:mm";
             StockWS.Column(23).Width = 25;
             StockWS.Column(24).Width = 25;
-            StockWS.Column(24).Style.Numberformat.Format = "dd/mm/yy HH:mm";
             StockWS.Column(25).Width = 25;
             StockWS.Column(26).Width = 25;
+            StockWS.Column(26).Style.Numberformat.Format = "dd/mm/yy HH:mm";
+            StockWS.Column(27).Width = 25;
+            StockWS.Column(28).Width = 25;
+            StockWS.Column(29).Width = 25;
+            StockWS.Column(30).Width = 25;
 
             StockWS.Cells[1, 1].Value = "Company";
             StockWS.Cells[1, 2].Value = "Company Name";
@@ -221,15 +225,17 @@ namespace WBM_API.Helpers.Excel
             StockWS.Cells[1, 17].Value = "Stock Rate Category";
             StockWS.Cells[1, 18].Value = "Stock Rate Category Description";
             StockWS.Cells[1, 19].Value = "Items Per Pallet";
-            StockWS.Cells[1, 20].Value = "Created DateTime";
-            StockWS.Cells[1, 21].Value = "Created Method";
-            StockWS.Cells[1, 22].Value = "Created User";
-            StockWS.Cells[1, 23].Value = "Created User Name";
-            StockWS.Cells[1, 24].Value = "Last Amended DateTime";
-            StockWS.Cells[1, 25].Value = "Last Amended Method";
-            StockWS.Cells[1, 26].Value = "Last Amended User";
-            StockWS.Cells[1, 27].Value = "Last Amended Name";
-            StockWS.Cells[1, 28].Value = "Deleted Flag";
+            StockWS.Cells[1, 20].Value = "Items Per Layer";
+            StockWS.Cells[1, 21].Value = "Layer Pick Eligible";
+            StockWS.Cells[1, 22].Value = "Created DateTime";
+            StockWS.Cells[1, 23].Value = "Created Method";
+            StockWS.Cells[1, 24].Value = "Created User";
+            StockWS.Cells[1, 25].Value = "Created User Name";
+            StockWS.Cells[1, 26].Value = "Last Amended DateTime";
+            StockWS.Cells[1, 27].Value = "Last Amended Method";
+            StockWS.Cells[1, 28].Value = "Last Amended User";
+            StockWS.Cells[1, 29].Value = "Last Amended Name";
+            StockWS.Cells[1, 30].Value = "Deleted Flag";
             #endregion
 
             #region processing
@@ -293,30 +299,32 @@ namespace WBM_API.Helpers.Excel
                     StockWS.Cells[rc, 17].Value = "StockRateCategoryID: " + Stocks[i].StockRateCategoryID.ToString();
 
                 StockWS.Cells[rc, 19].Value = Stocks[i].ItemsPerPallet;
+                StockWS.Cells[rc, 20].Value = Stocks[i].ItemsPerLayer;
+                StockWS.Cells[rc, 21].Value = Stocks[i].LayerPickEligible;
 
-                StockWS.Cells[rc, 20].Value = Stocks[i].CreatedDateTime.ToOADate();
-                StockWS.Cells[rc, 21].Value = Stocks[i].CreatedMethod;
+                StockWS.Cells[rc, 22].Value = Stocks[i].CreatedDateTime.ToOADate();
+                StockWS.Cells[rc, 23].Value = Stocks[i].CreatedMethod;
 
                 if (users.Any(x => x.ID == Stocks[i].CreatedUserID))
                 {
-                    StockWS.Cells[rc, 22].Value = users.FirstOrDefault(x => x.ID == Stocks[i].CreatedUserID).Firstname;
-                    StockWS.Cells[rc, 23].Value = users.FirstOrDefault(x => x.ID == Stocks[i].CreatedUserID).PublicID;
+                    StockWS.Cells[rc, 24].Value = users.FirstOrDefault(x => x.ID == Stocks[i].CreatedUserID).Firstname;
+                    StockWS.Cells[rc, 25].Value = users.FirstOrDefault(x => x.ID == Stocks[i].CreatedUserID).PublicID;
                 }
                 else
-                    StockWS.Cells[rc, 22].Value = "UserID: " + Stocks[i].CreatedUserID.ToString();
+                    StockWS.Cells[rc, 24].Value = "UserID: " + Stocks[i].CreatedUserID.ToString();
 
-                StockWS.Cells[rc, 24].Value = Stocks[i].LastAmendedDateTime.ToOADate();
-                StockWS.Cells[rc, 25].Value = Stocks[i].LastAmendedMethod;
+                StockWS.Cells[rc, 26].Value = Stocks[i].LastAmendedDateTime.ToOADate();
+                StockWS.Cells[rc, 27].Value = Stocks[i].LastAmendedMethod;
 
                 if (users.Any(x => x.ID == Stocks[i].LastAmendedUserID))
                 {
-                    StockWS.Cells[rc, 26].Value = users.FirstOrDefault(x => x.ID == Stocks[i].LastAmendedUserID).Firstname;
-                    StockWS.Cells[rc, 27].Value = users.FirstOrDefault(x => x.ID == Stocks[i].LastAmendedUserID).PublicID;
+                    StockWS.Cells[rc, 28].Value = users.FirstOrDefault(x => x.ID == Stocks[i].LastAmendedUserID).Firstname;
+                    StockWS.Cells[rc, 29].Value = users.FirstOrDefault(x => x.ID == Stocks[i].LastAmendedUserID).PublicID;
                 }
                 else
-                    StockWS.Cells[rc, 26].Value = "UserID: " + Stocks[i].LastAmendedUserID.ToString();
+                    StockWS.Cells[rc, 28].Value = "UserID: " + Stocks[i].LastAmendedUserID.ToString();
 
-                StockWS.Cells[rc, 28].Value = Stocks[i].DeletedFlag;
+                StockWS.Cells[rc, 30].Value = Stocks[i].DeletedFlag;
 
                 rc++;
             }

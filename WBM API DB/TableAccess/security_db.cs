@@ -3,7 +3,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 using System.Collections.Generic;
 using System.Data;
 using System.Net.Mail;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
+using wbm_common.DataObjects;
 
 namespace WBM_API.WBM_API_DB
 {
@@ -199,11 +200,13 @@ namespace WBM_API.WBM_API_DB
         #endregion
 
         #region SecurityItem
+        // TODO check if TAGID is actually what andrew wants to match up on stuff since it looks like it doesn't map on a table
         public async Task<Result<List<wbm_common.DataObjects.Security_Item.dbRow>>> Security_Item_List()
         {
             try
             {
-                List<wbm_common.DataObjects.Security_Item.dbRow> Security_Items = await _dbContext.Security_Item.AsNoTracking().Where(x => !x.DeletedFlag).ToListAsync();
+                List<wbm_common.DataObjects.Security_Item.dbRow> Security_Items = await _dbContext.Security_Item.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag).ToListAsync();
 
                 return Result.Success<List<wbm_common.DataObjects.Security_Item.dbRow>>(Security_Items);
             }
@@ -226,7 +229,8 @@ namespace WBM_API.WBM_API_DB
             {
                 try
                 {
-                    List<wbm_common.DataObjects.Security_Item.dbRow> Security_Items = await _dbContext.Security_Item.AsNoTracking().Where(x => !x.DeletedFlag && IDs.Contains(x.ID)).ToListAsync();
+                    List<wbm_common.DataObjects.Security_Item.dbRow> Security_Items = await _dbContext.Security_Item.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && IDs.Contains(x.ID)).ToListAsync();
                     return Result.Success<List<wbm_common.DataObjects.Security_Item.dbRow>>(Security_Items);
                 }
                 catch (Exception ex)
@@ -323,7 +327,8 @@ namespace WBM_API.WBM_API_DB
         {
             try
             {
-                List<wbm_common.DataObjects.Security_Role_Item.dbRow> Security_Role_Items = await _dbContext.Security_Role_Item.AsNoTracking().Where(x => !x.DeletedFlag).ToListAsync();
+                List<wbm_common.DataObjects.Security_Role_Item.dbRow> Security_Role_Items = await _dbContext.Security_Role_Item.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag).ToListAsync();
 
                 return Result.Success<List<wbm_common.DataObjects.Security_Role_Item.dbRow>>(Security_Role_Items);
             }
@@ -346,7 +351,8 @@ namespace WBM_API.WBM_API_DB
             {
                 try
                 {
-                    List<wbm_common.DataObjects.Security_Role_Item.dbRow> Security_Role_Items = await _dbContext.Security_Role_Item.AsNoTracking().Where(x => !x.DeletedFlag && IDs.Contains(x.ID)).ToListAsync();
+                    List<wbm_common.DataObjects.Security_Role_Item.dbRow> Security_Role_Items = await _dbContext.Security_Role_Item.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && IDs.Contains(x.ID)).ToListAsync();
                     return Result.Success<List<wbm_common.DataObjects.Security_Role_Item.dbRow>>(Security_Role_Items);
                 }
                 catch (Exception ex)
@@ -403,7 +409,8 @@ namespace WBM_API.WBM_API_DB
         {
             try
             {
-                List<wbm_common.DataObjects.Security_RoleGroup_Role.dbRow> Security_RoleGroup_Roles = await _dbContext.Security_RoleGroup_Role.AsNoTracking().Where(x => !x.DeletedFlag).ToListAsync();
+                List<wbm_common.DataObjects.Security_RoleGroup_Role.dbRow> Security_RoleGroup_Roles = await _dbContext.Security_RoleGroup_Role.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag).ToListAsync();
 
                 return Result.Success<List<wbm_common.DataObjects.Security_RoleGroup_Role.dbRow>>(Security_RoleGroup_Roles);
             }
@@ -426,7 +433,8 @@ namespace WBM_API.WBM_API_DB
             {
                 try
                 {
-                    List<wbm_common.DataObjects.Security_RoleGroup_Role.dbRow> Security_RoleGroup_Roles = await _dbContext.Security_RoleGroup_Role.AsNoTracking().Where(x => !x.DeletedFlag && IDs.Contains(x.ID)).ToListAsync();
+                    List<wbm_common.DataObjects.Security_RoleGroup_Role.dbRow> Security_RoleGroup_Roles = await _dbContext.Security_RoleGroup_Role.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && IDs.Contains(x.ID)).ToListAsync();
                     return Result.Success<List<wbm_common.DataObjects.Security_RoleGroup_Role.dbRow>>(Security_RoleGroup_Roles);
                 }
                 catch (Exception ex)
@@ -443,7 +451,8 @@ namespace WBM_API.WBM_API_DB
         {
             try
             {
-                List<wbm_common.DataObjects.Security_User_Item.dbRow> Security_User_Items = await _dbContext.Security_User_Item.AsNoTracking().Where(x => !x.DeletedFlag).ToListAsync();
+                List<wbm_common.DataObjects.Security_User_Item.dbRow> Security_User_Items = await _dbContext.Security_User_Item.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag).ToListAsync();
 
                 return Result.Success<List<wbm_common.DataObjects.Security_User_Item.dbRow>>(Security_User_Items);
             }
@@ -466,7 +475,8 @@ namespace WBM_API.WBM_API_DB
             {
                 try
                 {
-                    List<wbm_common.DataObjects.Security_User_Item.dbRow> Security_User_Items = await _dbContext.Security_User_Item.AsNoTracking().Where(x => !x.DeletedFlag && IDs.Contains(x.ID)).ToListAsync();
+                    List<wbm_common.DataObjects.Security_User_Item.dbRow> Security_User_Items = await _dbContext.Security_User_Item.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && IDs.Contains(x.ID)).ToListAsync();
                     return Result.Success<List<wbm_common.DataObjects.Security_User_Item.dbRow>>(Security_User_Items);
                 }
                 catch (Exception ex)
@@ -483,7 +493,8 @@ namespace WBM_API.WBM_API_DB
         {
             try
             {
-                List<wbm_common.DataObjects.Security_User_Role.dbRow> Security_User_Roles = await _dbContext.Security_User_Role.AsNoTracking().Where(x => !x.DeletedFlag).ToListAsync();
+                List<wbm_common.DataObjects.Security_User_Role.dbRow> Security_User_Roles = await _dbContext.Security_User_Role.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag).ToListAsync();
 
                 return Result.Success<List<wbm_common.DataObjects.Security_User_Role.dbRow>>(Security_User_Roles);
             }
@@ -506,7 +517,8 @@ namespace WBM_API.WBM_API_DB
             {
                 try
                 {
-                    List<wbm_common.DataObjects.Security_User_Role.dbRow> Security_User_Roles = await _dbContext.Security_User_Role.AsNoTracking().Where(x => !x.DeletedFlag && IDs.Contains(x.ID)).ToListAsync();
+                    List<wbm_common.DataObjects.Security_User_Role.dbRow> Security_User_Roles = await _dbContext.Security_User_Role.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && IDs.Contains(x.ID)).ToListAsync();
                     return Result.Success<List<wbm_common.DataObjects.Security_User_Role.dbRow>>(Security_User_Roles);
                 }
                 catch (Exception ex)
@@ -523,7 +535,8 @@ namespace WBM_API.WBM_API_DB
         {
             try
             {
-                List<wbm_common.DataObjects.Security_User_RoleGroup.dbRow> Security_User_RoleGroups = await _dbContext.Security_User_RoleGroup.AsNoTracking().Where(x => !x.DeletedFlag).ToListAsync();
+                List<wbm_common.DataObjects.Security_User_RoleGroup.dbRow> Security_User_RoleGroups = await _dbContext.Security_User_RoleGroup.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag).ToListAsync();
 
                 return Result.Success<List<wbm_common.DataObjects.Security_User_RoleGroup.dbRow>>(Security_User_RoleGroups);
             }
@@ -546,7 +559,8 @@ namespace WBM_API.WBM_API_DB
             {
                 try
                 {
-                    List<wbm_common.DataObjects.Security_User_RoleGroup.dbRow> Security_User_RoleGroups = await _dbContext.Security_User_RoleGroup.AsNoTracking().Where(x => !x.DeletedFlag && IDs.Contains(x.ID)).ToListAsync();
+                    List<wbm_common.DataObjects.Security_User_RoleGroup.dbRow> Security_User_RoleGroups = await _dbContext.Security_User_RoleGroup.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && IDs.Contains(x.ID)).ToListAsync();
                     return Result.Success<List<wbm_common.DataObjects.Security_User_RoleGroup.dbRow>>(Security_User_RoleGroups);
                 }
                 catch (Exception ex)

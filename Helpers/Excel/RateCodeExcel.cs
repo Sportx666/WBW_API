@@ -3,7 +3,7 @@ using NLog;
 using NLog.Web;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
 using wbm_common.DataObjects;
 
@@ -162,7 +162,8 @@ namespace WBM_API.Helpers.Excel
                 RateCodeWS.Cells[rc, 4].Value = RateCodes[i].MinimumCharge;
                 RateCodeWS.Cells[rc, 5].Value = RateCodes[i].Basic;
                 RateCodeWS.Cells[rc, 6].Value = RateCodes[i].IncludedUnits;
-                RateCodeWS.Cells[rc, 7].Value = RateCodes[i].DateOfChange;
+                if (RateCodes[i].DateOfChange.HasValue)
+                    RateCodeWS.Cells[rc, 7].Value = RateCodes[i].DateOfChange.Value.ToOADate();
                 RateCodeWS.Cells[rc, 8].Value = RateCodes[i].NewMinimumCharge;
                 RateCodeWS.Cells[rc, 9].Value = RateCodes[i].NewBasic;
                 RateCodeWS.Cells[rc, 10].Value = RateCodes[i].NewIncludedUnits;

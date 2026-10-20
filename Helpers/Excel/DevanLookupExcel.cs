@@ -3,9 +3,8 @@ using NLog;
 using NLog.Web;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
-using wbm_common.DataObjects;
 
 
 namespace WBM_API.Helpers.Excel
@@ -17,13 +16,12 @@ namespace WBM_API.Helpers.Excel
 
         private readonly WBMDatabase _WBMDB;
 
-        public List<wbm_common.DataObjects.ContainerSize.dbRow> containerSizes = null;
-        public List<wbm_common.DataObjects.Company.dbRow> companies = null;
-        public List<wbm_common.DataObjects.Site.dbRow> sites = null;
+        public List<wbm_common.DataObjects.ContainerSize.dbRowExtended> containerSizes = null;
+        public List<wbm_common.DataObjects.Company.dbRowExtended> companies = null;
+        public List<wbm_common.DataObjects.Site.dbRowExtended> sites = null;
         public List<wbm_common.DataObjects.Security_User.dbRow> users = null;
         public List<wbm_common.DataObjects.Owner.dbRow> owners = null;
-        public List<wbm_common.DataObjects.RateCode.dbRow> ratecodes = null;
-        public List<wbm_common.DataObjects.DevanLookup.dbRow> DevanLookups = null;
+        public List<wbm_common.DataObjects.DevanLookup.dbRowExtended> DevanLookups = null;
         public Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> CallBackStatusFunction { get; set; }
         private IHubCallerClients Clients;
         public wbm_common.DataObjects.LongRunProcessHeader.dbRow lrph { get; set; }
@@ -76,7 +74,7 @@ namespace WBM_API.Helpers.Excel
         private async Task<bool> GetData()
         {
 
-            Result<List<wbm_common.DataObjects.DevanLookup.dbRow>> rc = await DevanLookupHelper.ExecuteSearch(DevanLookupSearchData, _WBMDB);
+            Result<List<wbm_common.DataObjects.DevanLookup.dbRowExtended>> rc = await DevanLookupHelper.ExecuteSearch(DevanLookupSearchData, _WBMDB);
 
             if (rc.IsFailure)
             {
@@ -90,14 +88,13 @@ namespace WBM_API.Helpers.Excel
             // Build list of IDs to retrieve related data
             List<int> ListContainerSizesID = DevanLookups.Select(x => x.ContainerSizeID).Distinct().ToList();
             List<int> ListOwnerID = DevanLookups.Select(x => x.OwnerID).Distinct().ToList();
-            List<int> ListRateCodes = DevanLookups.Select(x => x.RateCodeID).Distinct().ToList();
             List<int> ListCompanyIDs = DevanLookups.Select(x => x.CompanyID).Distinct().ToList();
             List<int> ListSiteID = DevanLookups.Select(x => x.SiteID).Distinct().ToList();
             List<int> ListUserID = DevanLookups.Select(x => x.CreatedUserID).Union(DevanLookups.Select(x => x.LastAmendedUserID)).Distinct().ToList();
 
             if (ListContainerSizesID.Count > 0)
             {
-                Result<List<wbm_common.DataObjects.ContainerSize.dbRow>> containerSizesResults = _WBMDB.ContainerSize_ListByListIDs(ListContainerSizesID).GetAwaiter().GetResult();
+                Result<List<wbm_common.DataObjects.ContainerSize.dbRowExtended>> containerSizesResults = _WBMDB.ContainerSize_ListByListIDs(ListContainerSizesID).GetAwaiter().GetResult();
                 if (containerSizesResults.IsFailure || containerSizesResults.IsException)
                 {
                     ErrorMessage = ErrorCodes.GeneralDB.ToString();
@@ -117,20 +114,9 @@ namespace WBM_API.Helpers.Excel
                 owners = ownersResults.Value;
             }
 
-            if (ListRateCodes.Count > 0)
-            {
-                Result<List<wbm_common.DataObjects.RateCode.dbRow>> ratecodesResults = _WBMDB.RateCode_ListByListIDs(ListRateCodes).GetAwaiter().GetResult();
-                if (ratecodesResults.IsFailure || ratecodesResults.IsException)
-                {
-                    ErrorMessage = ErrorCodes.GeneralDB.ToString();
-                    return false;
-                }
-                ratecodes = ratecodesResults.Value;
-            }
-
             if (ListCompanyIDs.Count > 0)
             {
-                Result<List<wbm_common.DataObjects.Company.dbRow>> companiesResults = _WBMDB.Company_ListByListIDs(ListCompanyIDs).GetAwaiter().GetResult();
+                Result<List<wbm_common.DataObjects.Company.dbRowExtended>> companiesResults = _WBMDB.Company_ListByListIDs(ListCompanyIDs).GetAwaiter().GetResult();
                 if (companiesResults.IsFailure || companiesResults.IsException)
                 {
                     ErrorMessage = ErrorCodes.GeneralDB.ToString();
@@ -141,7 +127,7 @@ namespace WBM_API.Helpers.Excel
 
             if (ListSiteID.Count > 0)
             {
-                Result<List<wbm_common.DataObjects.Site.dbRow>> sitesResults = _WBMDB.Site_ListByListIDs(ListSiteID).GetAwaiter().GetResult();
+                Result<List<wbm_common.DataObjects.Site.dbRowExtended>> sitesResults = _WBMDB.Site_ListByListIDs(ListSiteID).GetAwaiter().GetResult();
                 if (sitesResults.IsFailure || sitesResults.IsException)
                 {
                     ErrorMessage = ErrorCodes.GeneralDB.ToString();
@@ -253,13 +239,8 @@ namespace WBM_API.Helpers.Excel
                 DevanLookupWS.Cells[rc, 8].Value = DevanLookups[i].IsContainerLoose;
                 DevanLookupWS.Cells[rc, 9].Value = DevanLookups[i].MaximumSKUCount;
 
-                if (ratecodes.Any(x => x.ID == DevanLookups[i].RateCodeID))
-                {
-                    DevanLookupWS.Cells[rc, 10].Value = ratecodes.FirstOrDefault(x => x.ID == DevanLookups[i].RateCodeID).RateCode;
-                    DevanLookupWS.Cells[rc, 11].Value = ratecodes.FirstOrDefault(x => x.ID == DevanLookups[i].RateCodeID).Description;
-                }
-                else
-                    DevanLookupWS.Cells[rc, 10].Value = "RateCodeID: " + DevanLookups[i].RateCodeID.ToString();
+
+                DevanLookupWS.Cells[rc, 10].Value = DevanLookups[i].RateCollectionRateChargeCode;
 
                 DevanLookupWS.Cells[rc, 12].Value = DevanLookups[i].CreatedDateTime.ToOADate();
                 DevanLookupWS.Cells[rc, 13].Value = DevanLookups[i].CreatedMethod;

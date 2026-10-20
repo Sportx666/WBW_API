@@ -2,8 +2,9 @@
 using NLog;
 using NLog.Web;
 using System.Data.SqlTypes;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
+using wbm_common.DataObjects;
 
 namespace WBM_API.Helpers
 {
@@ -24,7 +25,7 @@ namespace WBM_API.Helpers
                     }
                 case wbm_common.DataObjects.RateFunction.Search.SearchModeType.SingleID:
                     {
-                        rc = await _WBMDB.RateFunctionList_SearchByID(_RateFunctionSearchData.ID);
+                        rc = await _WBMDB.RateFunction_ListByID(_RateFunctionSearchData.ID);
                         break;
                     }
                 case wbm_common.DataObjects.RateFunction.Search.SearchModeType.AllRecords:
@@ -90,6 +91,13 @@ namespace WBM_API.Helpers
 
             public Boolean Save()
             {
+                List<string> fieldErrors = DbRowValidator.requiredFieldErrors(RateFunction.MyRequiredList, saveRow, _WBMDB);
+                if (fieldErrors.Count() > 0)
+                {
+                    ErrorMessage = string.Join(", ", fieldErrors);
+                    ReturnState = 400;
+                    return false;
+                }
                 if (CheckExist())
                 {
                     if (Exists)
@@ -185,7 +193,7 @@ namespace WBM_API.Helpers
                 }
                 else
                 {
-                    Result<wbm_common.DataObjects.RateFunction.dbRow> rcexist = _WBMDB.RateFunction_SearchByID(saveRow.ID).GetAwaiter().GetResult();
+                    Result<wbm_common.DataObjects.RateFunction.dbRow> rcexist = _WBMDB.RateFunction_SearchByPublicID(saveRow.PublicID).GetAwaiter().GetResult();
 
                     if (rcexist.IsException)
                     {
@@ -199,8 +207,8 @@ namespace WBM_API.Helpers
                     else
                     {
                         // We have at least one row... :(
-                        ErrorMessage = "ID already in use, must be unique - " + saveRow.ID.ToString();
-                        logger.Error("RateFunctionSave ID " + saveRow.ID.ToString() + " already exists");
+                        ErrorMessage = "PublicID already in use, must be unique - " + saveRow.PublicID;
+                        logger.Error("RateFunctionSave PublicID " + saveRow.PublicID + " already exists");
                         ReturnState = 400;
                         SavedSuccessfully = false;
                         return false;
@@ -281,12 +289,10 @@ namespace WBM_API.Helpers
                     {
                         changeHeaderRow.ID = chResult.Value;
 
-                        int ChangeHeaderTableID = (int)wbm_common.DataObjects.ChangeTracking.ChangeHeaderTableID.RateFunction;
-
                         foreach (wbm_common.DataObjects.ChangeDetail.dbRow cdRow in ct.ListChangeDetail)
                         {
                             cdRow.ChangeHeaderID = changeHeaderRow.ID;
-                            cdRow.ChangeHeaderTableID = ChangeHeaderTableID;
+                            cdRow.ChangeHeaderTableID = changeHeaderRow.ChangeHeaderTableID;
                             cdRow.RecordID = changeHeaderRow.RecordID;
 
                             Result<int> cdResult = _WBMDB.ChangeDetail_Insert((wbm_common.DataObjects.ChangeDetail.dbRow)cdRow).GetAwaiter().GetResult();

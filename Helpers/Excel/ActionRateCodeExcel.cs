@@ -3,7 +3,7 @@ using NLog;
 using NLog.Web;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
 using wbm_common.DataObjects;
 
@@ -17,15 +17,15 @@ namespace WBM_API.Helpers.Excel
 
         private readonly WBMDatabase _WBMDB;
 
-        public List<wbm_common.DataObjects.Company.dbRow> companies = null;
-        public List<wbm_common.DataObjects.Site.dbRow> sites = null;
+        public List<wbm_common.DataObjects.Company.dbRowExtended> companies = null;
+        public List<wbm_common.DataObjects.Site.dbRowExtended> sites = null;
         public List<wbm_common.DataObjects.Security_User.dbRow> users = null;
         public List<wbm_common.DataObjects.Owner.dbRow> owners = null;
-        public List<wbm_common.DataObjects.ActionType.dbRow> actiontypes = null;
+        public List<wbm_common.DataObjects.ActionType.dbRowExtended> actiontypes = null;
         public List<wbm_common.DataObjects.UnitType.dbRow> unittypes = null;
-        public List<wbm_common.DataObjects.StockRateCategory.dbRow> stockratecategories = null;
+        public List<wbm_common.DataObjects.StockRateCategory.dbRowExtended> stockratecategories = null;
         public List<wbm_common.DataObjects.RateCode.dbRow> ratecodes = null;
-        public List<wbm_common.DataObjects.ActionRateCode.dbRow> ActionRateCodes = null;
+        public List<wbm_common.DataObjects.ActionRateCode.dbRowExtended> ActionRateCodes = null;
         public Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> CallBackStatusFunction { get; set; }
         private IHubCallerClients Clients;
         public wbm_common.DataObjects.LongRunProcessHeader.dbRow lrph { get; set; }
@@ -79,7 +79,7 @@ namespace WBM_API.Helpers.Excel
         private async Task<bool> GetData()
         {
 
-            Result<List<wbm_common.DataObjects.ActionRateCode.dbRow>> rc = await ActionRateCodeHelper.ExecuteSearch(ActionRateCodeSearchData, _WBMDB);
+            Result<List<wbm_common.DataObjects.ActionRateCode.dbRowExtended>> rc = await ActionRateCodeHelper.ExecuteSearch(ActionRateCodeSearchData, _WBMDB);
 
             if (rc.IsFailure)
             {
@@ -95,7 +95,8 @@ namespace WBM_API.Helpers.Excel
             List<int> ListActionTypes = ActionRateCodes.Select(x => x.ActionTypeID).Distinct().ToList();
             List<int> ListUnitTypes = ActionRateCodes.Select(x => x.UnitTypeID).Distinct().ToList();
             List<int> ListStockRateCategories = ActionRateCodes.Select(x => x.StockRateCategoryID).Distinct().ToList();
-            List<int> ListRateCodes = ActionRateCodes.Select(x => x.RateCodeID).Distinct().ToList();
+            
+            // TODO: change to lookup RateCollection and then go for ratecode
             List<int> ListCompanyIDs = ActionRateCodes.Select(x => x.CompanyID).Distinct().ToList();
             List<int> ListSiteID = ActionRateCodes.Select(x => x.SiteID).Distinct().ToList();
             List<int> ListUserID = ActionRateCodes.Select(x => x.CreatedUserID).Union(ActionRateCodes.Select(x => x.LastAmendedUserID)).Distinct().ToList();
@@ -113,7 +114,7 @@ namespace WBM_API.Helpers.Excel
 
             if (ListActionTypes.Count > 0)
             {
-                Result<List<wbm_common.DataObjects.ActionType.dbRow>> actiontypesResults = _WBMDB.ActionType_ListByListIDs(ListActionTypes).GetAwaiter().GetResult();
+                Result<List<wbm_common.DataObjects.ActionType.dbRowExtended>> actiontypesResults = _WBMDB.ActionType_ListByListIDs(ListActionTypes).GetAwaiter().GetResult();
                 if (actiontypesResults.IsFailure || actiontypesResults.IsException)
                 {
                     ErrorMessage = ErrorCodes.GeneralDB.ToString();
@@ -135,7 +136,7 @@ namespace WBM_API.Helpers.Excel
 
             if (ListStockRateCategories.Count > 0)
             {
-                Result<List<wbm_common.DataObjects.StockRateCategory.dbRow>> stockratecategoriesResults = _WBMDB.StockRateCategory_ListByListIDs(ListStockRateCategories).GetAwaiter().GetResult();
+                Result<List<wbm_common.DataObjects.StockRateCategory.dbRowExtended>> stockratecategoriesResults = _WBMDB.StockRateCategory_ListByListIDs(ListStockRateCategories).GetAwaiter().GetResult();
                 if (stockratecategoriesResults.IsFailure || stockratecategoriesResults.IsException)
                 {
                     ErrorMessage = ErrorCodes.GeneralDB.ToString();
@@ -144,20 +145,9 @@ namespace WBM_API.Helpers.Excel
                 stockratecategories = stockratecategoriesResults.Value;
             }
 
-            if (ListRateCodes.Count > 0)
-            {
-                Result<List<wbm_common.DataObjects.RateCode.dbRow>> ratecodesResults = _WBMDB.RateCode_ListByListIDs(ListRateCodes).GetAwaiter().GetResult();
-                if (ratecodesResults.IsFailure || ratecodesResults.IsException)
-                {
-                    ErrorMessage = ErrorCodes.GeneralDB.ToString();
-                    return false;
-                }
-                ratecodes = ratecodesResults.Value;
-            }
-
             if (ListCompanyIDs.Count > 0)
             {
-                Result<List<wbm_common.DataObjects.Company.dbRow>> companiesResults = _WBMDB.Company_ListByListIDs(ListCompanyIDs).GetAwaiter().GetResult();
+                Result<List<wbm_common.DataObjects.Company.dbRowExtended>> companiesResults = _WBMDB.Company_ListByListIDs(ListCompanyIDs).GetAwaiter().GetResult();
                 if (companiesResults.IsFailure || companiesResults.IsException)
                 {
                     ErrorMessage = ErrorCodes.GeneralDB.ToString();
@@ -168,7 +158,7 @@ namespace WBM_API.Helpers.Excel
 
             if (ListSiteID.Count > 0)
             {
-                Result<List<wbm_common.DataObjects.Site.dbRow>> sitesResults = _WBMDB.Site_ListByListIDs(ListSiteID).GetAwaiter().GetResult();
+                Result<List<wbm_common.DataObjects.Site.dbRowExtended>> sitesResults = _WBMDB.Site_ListByListIDs(ListSiteID).GetAwaiter().GetResult();
                 if (sitesResults.IsFailure || sitesResults.IsException)
                 {
                     ErrorMessage = ErrorCodes.GeneralDB.ToString();
@@ -313,14 +303,7 @@ namespace WBM_API.Helpers.Excel
                 ActionRateCodeWS.Cells[rc, 14].Value = ActionRateCodes[i].WeightBreak;
                 ActionRateCodeWS.Cells[rc, 15].Value = ActionRateCodes[i].LengthBreak;
 
-                if (ratecodes.Any(x => x.ID == ActionRateCodes[i].RateCodeID))
-                {
-                    ActionRateCodeWS.Cells[rc, 16].Value = ratecodes.FirstOrDefault(x => x.ID == ActionRateCodes[i].RateCodeID).RateCode;
-                    ActionRateCodeWS.Cells[rc, 17].Value = ratecodes.FirstOrDefault(x => x.ID == ActionRateCodes[i].RateCodeID).Description;
-                }
-                else
-                    ActionRateCodeWS.Cells[rc, 16].Value = "RateCodeID: " + ActionRateCodes[i].RateCodeID.ToString();
-
+                ActionRateCodeWS.Cells[rc, 16].Value = ActionRateCodes[i].RateCollectionRateChargeCode;
 
                 ActionRateCodeWS.Cells[rc, 18].Value = ActionRateCodes[i].CreatedDateTime.ToOADate();
                 ActionRateCodeWS.Cells[rc, 19].Value = ActionRateCodes[i].CreatedMethod;

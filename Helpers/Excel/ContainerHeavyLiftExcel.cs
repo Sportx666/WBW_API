@@ -3,9 +3,8 @@ using NLog;
 using NLog.Web;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
-using wbm_common.DataObjects;
 
 
 namespace WBM_API.Helpers.Excel
@@ -17,12 +16,12 @@ namespace WBM_API.Helpers.Excel
 
         private readonly WBMDatabase _WBMDB;
 
-        public List<wbm_common.DataObjects.Company.dbRow> companies = null;
-        public List<wbm_common.DataObjects.Site.dbRow> sites = null;
+        public List<wbm_common.DataObjects.Company.dbRowExtended> companies = null;
+        public List<wbm_common.DataObjects.Site.dbRowExtended> sites = null;
         public List<wbm_common.DataObjects.Security_User.dbRow> users = null;
         public List<wbm_common.DataObjects.Owner.dbRow> owners = null;
         public List<wbm_common.DataObjects.RateCode.dbRow> ratecodes = null;
-        public List<wbm_common.DataObjects.ContainerHeavyLift.dbRow> ContainerHeavyLifts = null;
+        public List<wbm_common.DataObjects.ContainerHeavyLift.dbRowExtended> ContainerHeavyLifts = null;
         public Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> CallBackStatusFunction { get; set; }
         private IHubCallerClients Clients;
         public wbm_common.DataObjects.LongRunProcessHeader.dbRow lrph { get; set; }
@@ -75,7 +74,7 @@ namespace WBM_API.Helpers.Excel
         private async Task<bool> GetData()
         {
 
-            Result<List<wbm_common.DataObjects.ContainerHeavyLift.dbRow>> rc = await ContainerHeavyLiftHelper.ExecuteSearch(ContainerHeavyLiftSearchData, _WBMDB);
+            Result<List<wbm_common.DataObjects.ContainerHeavyLift.dbRowExtended>> rc = await ContainerHeavyLiftHelper.ExecuteSearch(ContainerHeavyLiftSearchData, _WBMDB);
 
             if (rc.IsFailure)
             {
@@ -88,7 +87,6 @@ namespace WBM_API.Helpers.Excel
 
             // Build list of IDs to retrieve related data
             List<int> ListOwnerID = ContainerHeavyLifts.Select(x => x.OwnerID).Distinct().ToList();
-            List<int> ListRateCodes = ContainerHeavyLifts.Select(x => x.RateCodeID).Distinct().ToList();
             List<int> ListCompanyIDs = ContainerHeavyLifts.Select(x => x.CompanyID).Distinct().ToList();
             List<int> ListSiteID = ContainerHeavyLifts.Select(x => x.SiteID).Distinct().ToList();
             List<int> ListUserID = ContainerHeavyLifts.Select(x => x.CreatedUserID).Union(ContainerHeavyLifts.Select(x => x.LastAmendedUserID)).Distinct().ToList();
@@ -104,20 +102,9 @@ namespace WBM_API.Helpers.Excel
                 owners = ownersResults.Value;
             }
 
-            if (ListRateCodes.Count > 0)
-            {
-                Result<List<wbm_common.DataObjects.RateCode.dbRow>> ratecodesResults = _WBMDB.RateCode_ListByListIDs(ListRateCodes).GetAwaiter().GetResult();
-                if (ratecodesResults.IsFailure || ratecodesResults.IsException)
-                {
-                    ErrorMessage = ErrorCodes.GeneralDB.ToString();
-                    return false;
-                }
-                ratecodes = ratecodesResults.Value;
-            }
-
             if (ListCompanyIDs.Count > 0)
             {
-                Result<List<wbm_common.DataObjects.Company.dbRow>> companiesResults = _WBMDB.Company_ListByListIDs(ListCompanyIDs).GetAwaiter().GetResult();
+                Result<List<wbm_common.DataObjects.Company.dbRowExtended>> companiesResults = _WBMDB.Company_ListByListIDs(ListCompanyIDs).GetAwaiter().GetResult();
                 if (companiesResults.IsFailure || companiesResults.IsException)
                 {
                     ErrorMessage = ErrorCodes.GeneralDB.ToString();
@@ -128,7 +115,7 @@ namespace WBM_API.Helpers.Excel
 
             if (ListSiteID.Count > 0)
             {
-                Result<List<wbm_common.DataObjects.Site.dbRow>> sitesResults = _WBMDB.Site_ListByListIDs(ListSiteID).GetAwaiter().GetResult();
+                Result<List<wbm_common.DataObjects.Site.dbRowExtended>> sitesResults = _WBMDB.Site_ListByListIDs(ListSiteID).GetAwaiter().GetResult();
                 if (sitesResults.IsFailure || sitesResults.IsException)
                 {
                     ErrorMessage = ErrorCodes.GeneralDB.ToString();
@@ -235,15 +222,7 @@ namespace WBM_API.Helpers.Excel
                 ContainerHeavyLiftWS.Cells[rc, 7].Value = ContainerHeavyLifts[i].MinWeight;
                 ContainerHeavyLiftWS.Cells[rc, 8].Value = ContainerHeavyLifts[i].MinLength;
                 ContainerHeavyLiftWS.Cells[rc, 9].Value = ContainerHeavyLifts[i].Percentage;
-
-                if (ratecodes.Any(x => x.ID == ContainerHeavyLifts[i].RateCodeID))
-                {
-                    ContainerHeavyLiftWS.Cells[rc, 10].Value = ratecodes.FirstOrDefault(x => x.ID == ContainerHeavyLifts[i].RateCodeID).RateCode;
-                    ContainerHeavyLiftWS.Cells[rc, 11].Value = ratecodes.FirstOrDefault(x => x.ID == ContainerHeavyLifts[i].RateCodeID).Description;
-                }
-                else
-                    ContainerHeavyLiftWS.Cells[rc, 10].Value = "RateCodeID: " + ContainerHeavyLifts[i].RateCodeID.ToString();
-
+                ContainerHeavyLiftWS.Cells[rc, 10].Value = ContainerHeavyLifts[i].RateCollectionRateChargeCode;
 
                 ContainerHeavyLiftWS.Cells[rc, 12].Value = ContainerHeavyLifts[i].CreatedDateTime.ToOADate();
                 ContainerHeavyLiftWS.Cells[rc, 13].Value = ContainerHeavyLifts[i].CreatedMethod;

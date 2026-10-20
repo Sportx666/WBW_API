@@ -1,6 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 
 namespace WBM_API.WBM_API_DB
 {
@@ -57,9 +57,27 @@ namespace WBM_API.WBM_API_DB
                 return Result.Exception<wbm_common.DataObjects.StorageRateCodeFrom.dbRow>("Internal Exception occured");
             }
         }
+        public async Task<Result<wbm_common.DataObjects.StorageRateCodeFrom.dbRow>> StorageRateCodeFrom_SearchByPublicID(string PublicID)
+        {
+            try
+            {
+                wbm_common.DataObjects.StorageRateCodeFrom.dbRow StorageRateCodeFrom = await _dbContext.StorageRateCodeFrom.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.PublicID == PublicID);
+
+                if (StorageRateCodeFrom == null)
+                    return Result.Failure<wbm_common.DataObjects.StorageRateCodeFrom.dbRow>("StorageRateCodeFrom not found : " + PublicID);
+                else
+                    return Result.Success<wbm_common.DataObjects.StorageRateCodeFrom.dbRow>(StorageRateCodeFrom);
+
+            }
+            catch (Exception ex)
+            {
+                logger.Error("StorageRateCodeFrom_SearchByPublicID - " + PublicID + ": " + ex);
+                return Result.Exception<wbm_common.DataObjects.StorageRateCodeFrom.dbRow>("Internal Exception occured");
+            }
+        }
 
         // read and search are different because of the deleted flag
-        public async Task<Result<List<wbm_common.DataObjects.StorageRateCodeFrom.dbRow>>> StorageRateCodeFromList_SearchByID(int ID)
+        public async Task<Result<List<wbm_common.DataObjects.StorageRateCodeFrom.dbRow>>> StorageRateCodeFrom_ListByID(int ID)
         {
             try
             {
@@ -72,7 +90,7 @@ namespace WBM_API.WBM_API_DB
             }
             catch (Exception ex)
             {
-                logger.Error("StorageRateCodeFromList_SearchByID - " + ID.ToString() + ": " + ex);
+                logger.Error("StorageRateCodeFrom_ListByID - " + ID.ToString() + ": " + ex);
                 return Result.Exception<List<wbm_common.DataObjects.StorageRateCodeFrom.dbRow>>("Internal Exception occured");
             }
         }

@@ -3,9 +3,8 @@ using NLog;
 using NLog.Web;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
-using wbm_common.DataObjects;
 
 
 namespace WBM_API.Helpers.Excel

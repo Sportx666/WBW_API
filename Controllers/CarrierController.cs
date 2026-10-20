@@ -5,9 +5,9 @@ using NLog.Web;
 using System.Diagnostics;
 using WBM_API.Helpers;
 using WBM_API.Helpers.Excel;
-using WBM_API.Models;
-using WBM_API.Models.ResponseObjects;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
+using wbm_common.DataObjects;
 using static WBM_API.Helpers.ControllerHelper;
 
 namespace WBM_API.Controllers;
@@ -45,7 +45,7 @@ public class CarrierController : ControllerBase
             // Do the search
             // Item1 : error message
             // Item2 : search results
-            Result<List<wbm_common.DataObjects.Carrier.dbRow>> carrierSearchResult = await CarrierHelper.ExecuteSearch((wbm_common.DataObjects.Carrier.Search)APICommonReturn.genericObject, _WBMDB);
+            Result<List<wbm_common.DataObjects.Carrier.dbRowExtended>> carrierSearchResult = await CarrierHelper.ExecuteSearch((wbm_common.DataObjects.Carrier.Search)APICommonReturn.genericObject, _WBMDB);
 
             if (carrierSearchResult.IsException)
                 return Helpers.ActionResultUtils.Send500Response(new List<ErrorMessage> { new ErrorMessage { Error = carrierSearchResult.ErrorMessage } }, false, apiTransactionLog, _WBMDB);
@@ -79,10 +79,13 @@ public class CarrierController : ControllerBase
             else if (APICommonReturn.errorCode == 500)
                 return Helpers.ActionResultUtils.Send500Response(new List<ErrorMessage> { new ErrorMessage { Error = APICommonReturn.error } }, false, apiTransactionLog, _WBMDB);
 
-            CarrierHelper.CarrierSave saveClass = new CarrierHelper.CarrierSave((wbm_common.DataObjects.Carrier)APICommonReturn.genericObject, UserID, _WBMDB);
+            Carrier carrier = (wbm_common.DataObjects.Carrier)APICommonReturn.genericObject;
+            CarrierHelper.CarrierSave saveClass = new CarrierHelper.CarrierSave(carrier, UserID, _WBMDB);
 
             if (saveClass.Save())
+            {
                 return Helpers.ActionResultUtils.Send200Response((wbm_common.DataObjects.Carrier)APICommonReturn.genericObject, apiTransactionLog, _WBMDB);
+            }
             else
             {
                 if (saveClass.ReturnState == 400)

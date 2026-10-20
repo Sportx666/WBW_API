@@ -3,9 +3,8 @@ using NLog;
 using NLog.Web;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
-using wbm_common.DataObjects;
 
 
 namespace WBM_API.Helpers.Excel
@@ -17,11 +16,11 @@ namespace WBM_API.Helpers.Excel
 
         private readonly WBMDatabase _WBMDB;
 
-        public List<wbm_common.DataObjects.Company.dbRow> companies = null;
-        public List<wbm_common.DataObjects.Site.dbRow> sites = null;
+        public List<wbm_common.DataObjects.Company.dbRowExtended> companies = null;
+        public List<wbm_common.DataObjects.Site.dbRowExtended> sites = null;
         public List<wbm_common.DataObjects.Security_User.dbRow> users = null;
         public List<wbm_common.DataObjects.Owner.dbRow> owners = null;
-        public List<wbm_common.DataObjects.CustomerAddress.dbRow> CustomerAddresss = null;
+        public List<wbm_common.DataObjects.CustomerAddress.dbRowExtended> CustomerAddresss = null;
         public Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> CallBackStatusFunction { get; set; }
         private IHubCallerClients Clients;
         public wbm_common.DataObjects.LongRunProcessHeader.dbRow lrph { get; set; }
@@ -74,7 +73,7 @@ namespace WBM_API.Helpers.Excel
         private async Task<bool> GetData()
         {
 
-            Result<List<wbm_common.DataObjects.CustomerAddress.dbRow>> rc = await CustomerAddressHelper.ExecuteSearch(CustomerAddressSearchData, _WBMDB);
+            Result<List<wbm_common.DataObjects.CustomerAddress.dbRowExtended>> rc = await CustomerAddressHelper.ExecuteSearch(CustomerAddressSearchData, _WBMDB);
 
             if (rc.IsFailure)
             {
@@ -104,7 +103,7 @@ namespace WBM_API.Helpers.Excel
 
             if (ListCompanyIDs.Count > 0)
             {
-                Result<List<wbm_common.DataObjects.Company.dbRow>> companiesResults = _WBMDB.Company_ListByListIDs(ListCompanyIDs).GetAwaiter().GetResult();
+                Result<List<wbm_common.DataObjects.Company.dbRowExtended>> companiesResults = _WBMDB.Company_ListByListIDs(ListCompanyIDs).GetAwaiter().GetResult();
                 if (companiesResults.IsFailure || companiesResults.IsException)
                 {
                     ErrorMessage = ErrorCodes.GeneralDB.ToString();
@@ -115,7 +114,7 @@ namespace WBM_API.Helpers.Excel
 
             if (ListSiteID.Count > 0)
             {
-                Result<List<wbm_common.DataObjects.Site.dbRow>> sitesResults = _WBMDB.Site_ListByListIDs(ListSiteID).GetAwaiter().GetResult();
+                Result<List<wbm_common.DataObjects.Site.dbRowExtended>> sitesResults = _WBMDB.Site_ListByListIDs(ListSiteID).GetAwaiter().GetResult();
                 if (sitesResults.IsFailure || sitesResults.IsException)
                 {
                     ErrorMessage = ErrorCodes.GeneralDB.ToString();
@@ -162,17 +161,18 @@ namespace WBM_API.Helpers.Excel
             CustomerAddressWS.Column(14).Width = 15;
             CustomerAddressWS.Column(15).Width = 15;
             CustomerAddressWS.Column(16).Width = 15;
-            CustomerAddressWS.Column(17).Width = 25;
-            CustomerAddressWS.Column(17).Style.Numberformat.Format = "dd/mm/yy HH:mm";
+            CustomerAddressWS.Column(17).Width = 35;
             CustomerAddressWS.Column(18).Width = 25;
+            CustomerAddressWS.Column(18).Style.Numberformat.Format = "dd/mm/yy HH:mm";
             CustomerAddressWS.Column(19).Width = 25;
             CustomerAddressWS.Column(20).Width = 25;
             CustomerAddressWS.Column(21).Width = 25;
-            CustomerAddressWS.Column(21).Style.Numberformat.Format = "dd/mm/yy HH:mm";
             CustomerAddressWS.Column(22).Width = 25;
+            CustomerAddressWS.Column(22).Style.Numberformat.Format = "dd/mm/yy HH:mm";
             CustomerAddressWS.Column(23).Width = 25;
             CustomerAddressWS.Column(24).Width = 25;
             CustomerAddressWS.Column(25).Width = 25;
+            CustomerAddressWS.Column(26).Width = 25;
 
             CustomerAddressWS.Cells[1, 1].Value = "Company";
             CustomerAddressWS.Cells[1, 2].Value = "Company Name";
@@ -190,15 +190,16 @@ namespace WBM_API.Helpers.Excel
             CustomerAddressWS.Cells[1, 14].Value = "Postcode";
             CustomerAddressWS.Cells[1, 15].Value = "Pallet Hire Delay Days";
             CustomerAddressWS.Cells[1, 16].Value = "Invoiced Enclosed";
-            CustomerAddressWS.Cells[1, 17].Value = "Created DateTime";
-            CustomerAddressWS.Cells[1, 18].Value = "Created Method";
-            CustomerAddressWS.Cells[1, 19].Value = "Created User";
-            CustomerAddressWS.Cells[1, 20].Value = "Created User Name";
-            CustomerAddressWS.Cells[1, 21].Value = "Last Amended DateTime";
-            CustomerAddressWS.Cells[1, 22].Value = "Last Amended Method";
-            CustomerAddressWS.Cells[1, 23].Value = "Last Amended User";
-            CustomerAddressWS.Cells[1, 24].Value = "Last Amended Name";
-            CustomerAddressWS.Cells[1, 25].Value = "Deleted Flag";
+            CustomerAddressWS.Cells[1, 17].Value = "Rate Collection Rate Charge Code";
+            CustomerAddressWS.Cells[1, 18].Value = "Created DateTime";
+            CustomerAddressWS.Cells[1, 19].Value = "Created Method";
+            CustomerAddressWS.Cells[1, 20].Value = "Created User";
+            CustomerAddressWS.Cells[1, 21].Value = "Created User Name";
+            CustomerAddressWS.Cells[1, 22].Value = "Last Amended DateTime";
+            CustomerAddressWS.Cells[1, 23].Value = "Last Amended Method";
+            CustomerAddressWS.Cells[1, 24].Value = "Last Amended User";
+            CustomerAddressWS.Cells[1, 25].Value = "Last Amended Name";
+            CustomerAddressWS.Cells[1, 26].Value = "Deleted Flag";
             #endregion
 
             #region processing
@@ -239,29 +240,30 @@ namespace WBM_API.Helpers.Excel
                 CustomerAddressWS.Cells[rc, 14].Value = CustomerAddresss[i].PostCode;
                 CustomerAddressWS.Cells[rc, 15].Value = CustomerAddresss[i].PalletHireDelayDays;
                 CustomerAddressWS.Cells[rc, 16].Value = CustomerAddresss[i].InvoiceEnclosed;
-                CustomerAddressWS.Cells[rc, 17].Value = CustomerAddresss[i].CreatedDateTime.ToOADate();
-                CustomerAddressWS.Cells[rc, 18].Value = CustomerAddresss[i].CreatedMethod;
+                CustomerAddressWS.Cells[rc, 17].Value = CustomerAddresss[i].Connote_RateCollectionRateChargeCode;
+                CustomerAddressWS.Cells[rc, 18].Value = CustomerAddresss[i].CreatedDateTime.ToOADate();
+                CustomerAddressWS.Cells[rc, 19].Value = CustomerAddresss[i].CreatedMethod;
 
                 if (users.Any(x => x.ID == CustomerAddresss[i].CreatedUserID))
                 {
-                    CustomerAddressWS.Cells[rc, 19].Value = users.FirstOrDefault(x => x.ID == CustomerAddresss[i].CreatedUserID).Firstname;
-                    CustomerAddressWS.Cells[rc, 20].Value = users.FirstOrDefault(x => x.ID == CustomerAddresss[i].CreatedUserID).PublicID;
+                    CustomerAddressWS.Cells[rc, 20].Value = users.FirstOrDefault(x => x.ID == CustomerAddresss[i].CreatedUserID).Firstname;
+                    CustomerAddressWS.Cells[rc, 21].Value = users.FirstOrDefault(x => x.ID == CustomerAddresss[i].CreatedUserID).PublicID;
                 }
                 else
-                    CustomerAddressWS.Cells[rc, 19].Value = "UserID: " + CustomerAddresss[i].CreatedUserID.ToString();
+                    CustomerAddressWS.Cells[rc, 20].Value = "UserID: " + CustomerAddresss[i].CreatedUserID.ToString();
 
-                CustomerAddressWS.Cells[rc, 21].Value = CustomerAddresss[i].LastAmendedDateTime.ToOADate();
-                CustomerAddressWS.Cells[rc, 22].Value = CustomerAddresss[i].LastAmendedMethod;
+                CustomerAddressWS.Cells[rc, 22].Value = CustomerAddresss[i].LastAmendedDateTime.ToOADate();
+                CustomerAddressWS.Cells[rc, 23].Value = CustomerAddresss[i].LastAmendedMethod;
 
                 if (users.Any(x => x.ID == CustomerAddresss[i].LastAmendedUserID))
                 {
-                    CustomerAddressWS.Cells[rc, 23].Value = users.FirstOrDefault(x => x.ID == CustomerAddresss[i].LastAmendedUserID).Firstname;
-                    CustomerAddressWS.Cells[rc, 24].Value = users.FirstOrDefault(x => x.ID == CustomerAddresss[i].LastAmendedUserID).PublicID;
+                    CustomerAddressWS.Cells[rc, 24].Value = users.FirstOrDefault(x => x.ID == CustomerAddresss[i].LastAmendedUserID).Firstname;
+                    CustomerAddressWS.Cells[rc, 25].Value = users.FirstOrDefault(x => x.ID == CustomerAddresss[i].LastAmendedUserID).PublicID;
                 }
                 else
-                    CustomerAddressWS.Cells[rc, 23].Value = "UserID: " + CustomerAddresss[i].LastAmendedUserID.ToString();
+                    CustomerAddressWS.Cells[rc, 24].Value = "UserID: " + CustomerAddresss[i].LastAmendedUserID.ToString();
 
-                CustomerAddressWS.Cells[rc, 25].Value = CustomerAddresss[i].DeletedFlag;
+                CustomerAddressWS.Cells[rc, 26].Value = CustomerAddresss[i].DeletedFlag;
 
                 rc++;
             }

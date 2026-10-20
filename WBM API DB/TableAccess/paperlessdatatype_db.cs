@@ -1,6 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 
 namespace WBM_API.WBM_API_DB
 {
@@ -39,27 +39,27 @@ namespace WBM_API.WBM_API_DB
             }
         }
 
-        public async Task<Result<wbm_common.DataObjects.PaperlessDataType.dbRow>> PaperlessDataType_SearchByID(int ID)
+        public async Task<Result<wbm_common.DataObjects.PaperlessDataType.dbRow>> PaperlessDataType_SearchByPublicID(string PublicID)
         {
             try
             {
-                wbm_common.DataObjects.PaperlessDataType.dbRow PaperlessDataType = await _dbContext.PaperlessDataType.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.ID == ID);
+                wbm_common.DataObjects.PaperlessDataType.dbRow PaperlessDataType = await _dbContext.PaperlessDataType.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.PublicID == PublicID);
 
                 if (PaperlessDataType == null)
-                    return Result.Failure<wbm_common.DataObjects.PaperlessDataType.dbRow>("PaperlessDataType not found : " + ID.ToString());
+                    return Result.Failure<wbm_common.DataObjects.PaperlessDataType.dbRow>("PaperlessDataType not found : " + PublicID);
                 else
                     return Result.Success<wbm_common.DataObjects.PaperlessDataType.dbRow>(PaperlessDataType);
 
             }
             catch (Exception ex)
             {
-                logger.Error("PaperlessDataType_SearchByID - " + ID.ToString() + ": " + ex);
+                logger.Error("PaperlessDataType_SearchByPublicID - " + PublicID + ": " + ex);
                 return Result.Exception<wbm_common.DataObjects.PaperlessDataType.dbRow>("Internal Exception occured");
             }
         }
 
         // read and search are different because of the deleted flag
-        public async Task<Result<List<wbm_common.DataObjects.PaperlessDataType.dbRow>>> PaperlessDataTypeList_SearchByID(int ID)
+        public async Task<Result<List<wbm_common.DataObjects.PaperlessDataType.dbRow>>> PaperlessDataType_ListByID(int ID)
         {
             try
             {
@@ -72,7 +72,7 @@ namespace WBM_API.WBM_API_DB
             }
             catch (Exception ex)
             {
-                logger.Error("PaperlessDataTypeList_SearchByID - " + ID.ToString() + ": " + ex);
+                logger.Error("PaperlessDataType_ListByID - " + ID.ToString() + ": " + ex);
                 return Result.Exception<List<wbm_common.DataObjects.PaperlessDataType.dbRow>>("Internal Exception occured");
             }
         }

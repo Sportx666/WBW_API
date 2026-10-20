@@ -1,7 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 
 
 namespace WBM_API.WBM_API_DB

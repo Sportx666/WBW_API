@@ -3,9 +3,8 @@ using NLog;
 using NLog.Web;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
-using wbm_common.DataObjects;
 
 
 namespace WBM_API.Helpers.Excel
@@ -18,7 +17,7 @@ namespace WBM_API.Helpers.Excel
         private readonly WBMDatabase _WBMDB;
 
         public List<wbm_common.DataObjects.Security_User.dbRow> users = null;
-        public List<wbm_common.DataObjects.ContainerUnLoadType.dbRow> ContainerUnLoadTypes = null;
+        public List<wbm_common.DataObjects.ContainerUnLoadType.dbRowExtended> ContainerUnLoadTypes = null;
         public Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> CallBackStatusFunction { get; set; }
         private IHubCallerClients Clients;
         public wbm_common.DataObjects.LongRunProcessHeader.dbRow lrph { get; set; }
@@ -71,7 +70,7 @@ namespace WBM_API.Helpers.Excel
         private async Task<bool> GetData()
         {
 
-            Result<List<wbm_common.DataObjects.ContainerUnLoadType.dbRow>> rc = await ContainerUnLoadTypeHelper.ExecuteSearch(ContainerUnLoadTypeSearchData, _WBMDB);
+            Result<List<wbm_common.DataObjects.ContainerUnLoadType.dbRowExtended>> rc = await ContainerUnLoadTypeHelper.ExecuteSearch(ContainerUnLoadTypeSearchData, _WBMDB);
 
             if (rc.IsFailure)
             {

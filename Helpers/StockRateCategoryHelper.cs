@@ -2,18 +2,19 @@
 using NLog;
 using NLog.Web;
 using System.Data.SqlTypes;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
+using wbm_common.DataObjects;
 
 namespace WBM_API.Helpers
 {
     public class StockRateCategoryHelper
     {
         private static Logger logger = LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
-        public static async Task<Result<List<wbm_common.DataObjects.StockRateCategory.dbRow>>> ExecuteSearch(wbm_common.DataObjects.StockRateCategory.Search _StockRateCategorySearchData, WBMDatabase _WBMDB, IHubCallerClients Clients = null, Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> inCallBackStatusFunction = null, wbm_common.DataObjects.LongRunProcessHeader.dbRow longRunProcessHeader = null)
+        public static async Task<Result<List<wbm_common.DataObjects.StockRateCategory.dbRowExtended>>> ExecuteSearch(wbm_common.DataObjects.StockRateCategory.Search _StockRateCategorySearchData, WBMDatabase _WBMDB, IHubCallerClients Clients = null, Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> inCallBackStatusFunction = null, wbm_common.DataObjects.LongRunProcessHeader.dbRow longRunProcessHeader = null)
         {
-            Result<List<wbm_common.DataObjects.StockRateCategory.dbRow>> rc;
-            List<wbm_common.DataObjects.StockRateCategory.dbRow> StockRateCategorys;
+            Result<List<wbm_common.DataObjects.StockRateCategory.dbRowExtended>> rc;
+            List<wbm_common.DataObjects.StockRateCategory.dbRowExtended> StockRateCategorys;
             switch (_StockRateCategorySearchData.SearchMode)
             {
                 case wbm_common.DataObjects.StockRateCategory.Search.SearchModeType.Undefined:
@@ -37,7 +38,7 @@ namespace WBM_API.Helpers
                         if (_StockRateCategorySearchData.ListSiteID == null || _StockRateCategorySearchData.ListSiteID.Count() != 1)
                         {
                             logger.Error("StockRateCategoryHelper.ExecuteSearch: Stock SingleSite doesn't have single site input");
-                            rc = Result.Exception<List<wbm_common.DataObjects.StockRateCategory.dbRow>>("Internal Exception occured");
+                            rc = Result.Exception<List<wbm_common.DataObjects.StockRateCategory.dbRowExtended>>("Internal Exception occured");
                             break;
                         }
                         rc = await _WBMDB.StockRateCategory_ListBySingleSiteID(_StockRateCategorySearchData.ListSiteID[0]);
@@ -48,7 +49,7 @@ namespace WBM_API.Helpers
                         if (_StockRateCategorySearchData.ListCompanyID == null || _StockRateCategorySearchData.ListCompanyID.Count() != 1)
                         {
                             logger.Error("StockRateCategoryHelper.ExecuteSearch: Stock SingleCompany doesn't have single company input");
-                            rc = Result.Exception<List<wbm_common.DataObjects.StockRateCategory.dbRow>>("Internal Exception occured");
+                            rc = Result.Exception<List<wbm_common.DataObjects.StockRateCategory.dbRowExtended>>("Internal Exception occured");
                             break;
                         }
                         rc = await _WBMDB.StockRateCategory_ListBySingleCompanyID(_StockRateCategorySearchData.ListCompanyID[0]);
@@ -57,7 +58,7 @@ namespace WBM_API.Helpers
                 default:
                     {
                         logger.Error("StockRateCategoryHelper.ExecuteSearch: StockRateCategory Search Mode Type Error");
-                        rc = Result.Exception<List<wbm_common.DataObjects.StockRateCategory.dbRow>>("Internal Exception occured");
+                        rc = Result.Exception<List<wbm_common.DataObjects.StockRateCategory.dbRowExtended>>("Internal Exception occured");
                         break;
                     }
             }
@@ -112,6 +113,13 @@ namespace WBM_API.Helpers
 
             public Boolean Save()
             {
+                List<string> fieldErrors = DbRowValidator.requiredFieldErrors(StockRateCategory.MyRequiredList, saveRow, _WBMDB);
+                if (fieldErrors.Count() > 0)
+                {
+                    ErrorMessage = string.Join(", ", fieldErrors);
+                    ReturnState = 400;
+                    return false;
+                }
                 if (CheckExist())
                 {
                     if (Exists)
@@ -303,12 +311,10 @@ namespace WBM_API.Helpers
                     {
                         changeHeaderRow.ID = chResult.Value;
 
-                        int ChangeHeaderTableID = (int)wbm_common.DataObjects.ChangeTracking.ChangeHeaderTableID.StockRateCategory;
-
                         foreach (wbm_common.DataObjects.ChangeDetail.dbRow cdRow in ct.ListChangeDetail)
                         {
                             cdRow.ChangeHeaderID = changeHeaderRow.ID;
-                            cdRow.ChangeHeaderTableID = ChangeHeaderTableID;
+                            cdRow.ChangeHeaderTableID = changeHeaderRow.ChangeHeaderTableID;
                             cdRow.RecordID = changeHeaderRow.RecordID;
 
                             Result<int> cdResult = _WBMDB.ChangeDetail_Insert((wbm_common.DataObjects.ChangeDetail.dbRow)cdRow).GetAwaiter().GetResult();

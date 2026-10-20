@@ -3,7 +3,7 @@ using NLog;
 using NLog.Web;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
 using wbm_common.DataObjects;
 
@@ -17,13 +17,14 @@ namespace WBM_API.Helpers.Excel
 
         private readonly WBMDatabase _WBMDB;
 
-        public List<wbm_common.DataObjects.Company.dbRow> companies = null;
-        public List<wbm_common.DataObjects.Site.dbRow> sites = null;
+        public List<wbm_common.DataObjects.Company.dbRowExtended> companies = null;
+        public List<wbm_common.DataObjects.Site.dbRowExtended> sites = null;
         public List<wbm_common.DataObjects.Security_User.dbRow> users = null;
         public List<wbm_common.DataObjects.ProcessingRuleProcess.dbRow> processingruleprocess = null;
         public List<wbm_common.DataObjects.ProcessingRuleTriggerCondition.dbRow> triggers = null;
         public List<wbm_common.DataObjects.ProcessingRuleDefn.dbRow> processingrulesdefns = null;
-        public List<wbm_common.DataObjects.ProcessingRule.dbRow> ProcessingRules = null;
+        public List<wbm_common.DataObjects.ProcessingRule.dbRowExtended> ProcessingRules = null;
+        public List<wbm_common.DataObjects.RateFunction.dbRow> rateFunctions = null;
         public Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> CallBackStatusFunction { get; set; }
         private IHubCallerClients Clients;
         public wbm_common.DataObjects.LongRunProcessHeader.dbRow lrph { get; set; }
@@ -76,7 +77,7 @@ namespace WBM_API.Helpers.Excel
         private async Task<bool> GetData()
         {
 
-            Result<List<wbm_common.DataObjects.ProcessingRule.dbRow>> rc = await ProcessingRuleHelper.ExecuteSearch(ProcessingRuleSearchData, _WBMDB);
+            Result<List<wbm_common.DataObjects.ProcessingRule.dbRowExtended>> rc = await ProcessingRuleHelper.ExecuteSearch(ProcessingRuleSearchData, _WBMDB);
 
             if (rc.IsFailure)
             {
@@ -88,12 +89,13 @@ namespace WBM_API.Helpers.Excel
             ProcessingRules = rc.Value;
 
             // Build list of IDs to retrieve related data
-            List<int> ListTriggerID = ProcessingRules.Select(x => x.TriggerID).Distinct().ToList();
+            List<int> ListTriggerID = ProcessingRules.Select(x => x.TriggerID.GetValueOrDefault()).Distinct().ToList();
             List<int> ListProcessingRuleProcessIDs = ProcessingRules.Select(x => x.ProcessID).Distinct().ToList();
             List<int> ListProcessingDefnIDs = ProcessingRules.Select(x => x.ProcessingRuleDefnID).Distinct().ToList();
             List<int> ListCompanyIDs = ProcessingRules.Select(x => x.CompanyID).Distinct().ToList();
             List<int> ListSiteID = ProcessingRules.Select(x => x.SiteID).Distinct().ToList();
             List<int> ListUserID = ProcessingRules.Select(x => x.CreatedUserID).Union(ProcessingRules.Select(x => x.LastAmendedUserID)).Distinct().ToList();
+            List<int> ListRateFunctionID = ProcessingRules.Select(x => x.RateFunctionID).Distinct().ToList();
 
             if (ListProcessingRuleProcessIDs.Count > 0)
             {
@@ -130,7 +132,7 @@ namespace WBM_API.Helpers.Excel
 
             if (ListCompanyIDs.Count > 0)
             {
-                Result<List<wbm_common.DataObjects.Company.dbRow>> companiesResults = _WBMDB.Company_ListByListIDs(ListCompanyIDs).GetAwaiter().GetResult();
+                Result<List<wbm_common.DataObjects.Company.dbRowExtended>> companiesResults = _WBMDB.Company_ListByListIDs(ListCompanyIDs).GetAwaiter().GetResult();
                 if (companiesResults.IsFailure || companiesResults.IsException)
                 {
                     ErrorMessage = ErrorCodes.GeneralDB.ToString();
@@ -141,7 +143,7 @@ namespace WBM_API.Helpers.Excel
 
             if (ListSiteID.Count > 0)
             {
-                Result<List<wbm_common.DataObjects.Site.dbRow>> sitesResults = _WBMDB.Site_ListByListIDs(ListSiteID).GetAwaiter().GetResult();
+                Result<List<wbm_common.DataObjects.Site.dbRowExtended>> sitesResults = _WBMDB.Site_ListByListIDs(ListSiteID).GetAwaiter().GetResult();
                 if (sitesResults.IsFailure || sitesResults.IsException)
                 {
                     ErrorMessage = ErrorCodes.GeneralDB.ToString();
@@ -159,6 +161,17 @@ namespace WBM_API.Helpers.Excel
                     return false;
                 }
                 users = userResults.Value;
+            }
+
+            if (ListRateFunctionID.Count > 0)
+            {
+                Result<List<wbm_common.DataObjects.RateFunction.dbRow>> RateFunctionResults = _WBMDB.RateFunction_ListByListIDs(ListRateFunctionID).GetAwaiter().GetResult();
+                if (RateFunctionResults.IsFailure || RateFunctionResults.IsException)
+                {
+                    ErrorMessage = ErrorCodes.GeneralDB.ToString();
+                    return false;
+                }
+                rateFunctions = RateFunctionResults.Value;
             }
 
             return true;
@@ -184,16 +197,18 @@ namespace WBM_API.Helpers.Excel
             ProcessingRuleWS.Column(10).Width = 10;
             ProcessingRuleWS.Column(11).Width = 25;
             ProcessingRuleWS.Column(12).Width = 25;
-            ProcessingRuleWS.Column(12).Style.Numberformat.Format = "dd/mm/yy HH:mm";
             ProcessingRuleWS.Column(13).Width = 25;
             ProcessingRuleWS.Column(14).Width = 25;
+            ProcessingRuleWS.Column(14).Style.Numberformat.Format = "dd/mm/yy HH:mm";
             ProcessingRuleWS.Column(15).Width = 25;
             ProcessingRuleWS.Column(16).Width = 25;
-            ProcessingRuleWS.Column(16).Style.Numberformat.Format = "dd/mm/yy HH:mm";
             ProcessingRuleWS.Column(17).Width = 25;
             ProcessingRuleWS.Column(18).Width = 25;
+            ProcessingRuleWS.Column(18).Style.Numberformat.Format = "dd/mm/yy HH:mm";
             ProcessingRuleWS.Column(19).Width = 25;
-            ProcessingRuleWS.Column(20).Width = 15;
+            ProcessingRuleWS.Column(20).Width = 25;
+            ProcessingRuleWS.Column(21).Width = 25;
+            ProcessingRuleWS.Column(22).Width = 15;
 
             ProcessingRuleWS.Cells[1, 1].Value = "Company";
             ProcessingRuleWS.Cells[1, 2].Value = "Company Name";
@@ -206,15 +221,17 @@ namespace WBM_API.Helpers.Excel
             ProcessingRuleWS.Cells[1, 9].Value = "Sort Order";
             ProcessingRuleWS.Cells[1, 10].Value = "Process ID";
             ProcessingRuleWS.Cells[1, 11].Value = "Process Description";
-            ProcessingRuleWS.Cells[1, 12].Value = "Created DateTime";
-            ProcessingRuleWS.Cells[1, 13].Value = "Created Method";
-            ProcessingRuleWS.Cells[1, 14].Value = "Created User";
-            ProcessingRuleWS.Cells[1, 15].Value = "Created User Name";
-            ProcessingRuleWS.Cells[1, 16].Value = "Last Amended DateTime";
-            ProcessingRuleWS.Cells[1, 17].Value = "Last Amended Method";
-            ProcessingRuleWS.Cells[1, 18].Value = "Last Amended User";
-            ProcessingRuleWS.Cells[1, 19].Value = "Last Amended Name";
-            ProcessingRuleWS.Cells[1, 20].Value = "Deleted Flag";
+            ProcessingRuleWS.Cells[1, 12].Value = "Rate Function ID";
+            ProcessingRuleWS.Cells[1, 13].Value = "Rate Function Description";
+            ProcessingRuleWS.Cells[1, 14].Value = "Created DateTime";
+            ProcessingRuleWS.Cells[1, 15].Value = "Created Method";
+            ProcessingRuleWS.Cells[1, 16].Value = "Created User";
+            ProcessingRuleWS.Cells[1, 17].Value = "Created User Name";
+            ProcessingRuleWS.Cells[1, 18].Value = "Last Amended DateTime";
+            ProcessingRuleWS.Cells[1, 19].Value = "Last Amended Method";
+            ProcessingRuleWS.Cells[1, 20].Value = "Last Amended User";
+            ProcessingRuleWS.Cells[1, 21].Value = "Last Amended Name";
+            ProcessingRuleWS.Cells[1, 22].Value = "Deleted Flag";
             #endregion
 
             #region processing
@@ -263,29 +280,37 @@ namespace WBM_API.Helpers.Excel
                 else
                     ProcessingRuleWS.Cells[rc, 10].Value = "ProcessID: " + ProcessingRules[i].ProcessID.ToString();
 
-                ProcessingRuleWS.Cells[rc, 12].Value = ProcessingRules[i].CreatedDateTime.ToOADate();
-                ProcessingRuleWS.Cells[rc, 13].Value = ProcessingRules[i].CreatedMethod;
+                if (rateFunctions.Any(x => x.ID == ProcessingRules[i].RateFunctionID))
+                {
+                    ProcessingRuleWS.Cells[rc, 12].Value = rateFunctions.FirstOrDefault(x => x.ID == ProcessingRules[i].RateFunctionID).PublicID;
+                    ProcessingRuleWS.Cells[rc, 13].Value = rateFunctions.FirstOrDefault(x => x.ID == ProcessingRules[i].RateFunctionID).Description;
+                }
+                else
+                    ProcessingRuleWS.Cells[rc, 12].Value = "RateFunctionID: " + ProcessingRules[i].RateFunctionID.ToString();
+
+                ProcessingRuleWS.Cells[rc, 14].Value = ProcessingRules[i].CreatedDateTime.ToOADate();
+                ProcessingRuleWS.Cells[rc, 15].Value = ProcessingRules[i].CreatedMethod;
 
                 if (users.Any(x => x.ID == ProcessingRules[i].CreatedUserID))
                 {
-                    ProcessingRuleWS.Cells[rc, 14].Value = users.FirstOrDefault(x => x.ID == ProcessingRules[i].CreatedUserID).Firstname;
-                    ProcessingRuleWS.Cells[rc, 15].Value = users.FirstOrDefault(x => x.ID == ProcessingRules[i].CreatedUserID).PublicID;
+                    ProcessingRuleWS.Cells[rc, 16].Value = users.FirstOrDefault(x => x.ID == ProcessingRules[i].CreatedUserID).Firstname;
+                    ProcessingRuleWS.Cells[rc, 17].Value = users.FirstOrDefault(x => x.ID == ProcessingRules[i].CreatedUserID).PublicID;
                 }
                 else
-                    ProcessingRuleWS.Cells[rc, 14].Value = "UserID: " + ProcessingRules[i].CreatedUserID.ToString();
+                    ProcessingRuleWS.Cells[rc, 16].Value = "UserID: " + ProcessingRules[i].CreatedUserID.ToString();
 
-                ProcessingRuleWS.Cells[rc, 16].Value = ProcessingRules[i].LastAmendedDateTime.ToOADate();
-                ProcessingRuleWS.Cells[rc, 17].Value = ProcessingRules[i].LastAmendedMethod;
+                ProcessingRuleWS.Cells[rc, 18].Value = ProcessingRules[i].LastAmendedDateTime.ToOADate();
+                ProcessingRuleWS.Cells[rc, 19].Value = ProcessingRules[i].LastAmendedMethod;
 
                 if (users.Any(x => x.ID == ProcessingRules[i].LastAmendedUserID))
                 {
-                    ProcessingRuleWS.Cells[rc, 18].Value = users.FirstOrDefault(x => x.ID == ProcessingRules[i].LastAmendedUserID).Firstname;
-                    ProcessingRuleWS.Cells[rc, 19].Value = users.FirstOrDefault(x => x.ID == ProcessingRules[i].LastAmendedUserID).PublicID;
+                    ProcessingRuleWS.Cells[rc, 20].Value = users.FirstOrDefault(x => x.ID == ProcessingRules[i].LastAmendedUserID).Firstname;
+                    ProcessingRuleWS.Cells[rc, 21].Value = users.FirstOrDefault(x => x.ID == ProcessingRules[i].LastAmendedUserID).PublicID;
                 }
                 else
-                    ProcessingRuleWS.Cells[rc, 18].Value = "UserID: " + ProcessingRules[i].LastAmendedUserID.ToString();
+                    ProcessingRuleWS.Cells[rc, 20].Value = "UserID: " + ProcessingRules[i].LastAmendedUserID.ToString();
 
-                ProcessingRuleWS.Cells[rc, 20].Value = ProcessingRules[i].DeletedFlag;
+                ProcessingRuleWS.Cells[rc, 22].Value = ProcessingRules[i].DeletedFlag;
 
                 rc++;
             }

@@ -2,18 +2,19 @@
 using NLog;
 using NLog.Web;
 using System.Data.SqlTypes;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
+using wbm_common.DataObjects;
 
 namespace WBM_API.Helpers
 {
     public class StockHelper
     {
         private static Logger logger = LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
-        public static async Task<Result<List<wbm_common.DataObjects.Stock.dbRow>>> ExecuteSearch(wbm_common.DataObjects.Stock.Search _StockSearchData, WBMDatabase _WBMDB, IHubCallerClients Clients = null, Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> inCallBackStatusFunction = null, wbm_common.DataObjects.LongRunProcessHeader.dbRow longRunProcessHeader = null)
+        public static async Task<Result<List<wbm_common.DataObjects.Stock.dbRowExtended>>> ExecuteSearch(wbm_common.DataObjects.Stock.Search _StockSearchData, WBMDatabase _WBMDB, IHubCallerClients Clients = null, Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> inCallBackStatusFunction = null, wbm_common.DataObjects.LongRunProcessHeader.dbRow longRunProcessHeader = null)
         {
-            Result<List<wbm_common.DataObjects.Stock.dbRow>> rc;
-            List<wbm_common.DataObjects.Stock.dbRow> Stocks;
+            Result<List<wbm_common.DataObjects.Stock.dbRowExtended>> rc;
+            List<wbm_common.DataObjects.Stock.dbRowExtended> Stocks;
             switch (_StockSearchData.SearchMode)
             {
                 case wbm_common.DataObjects.Stock.Search.SearchModeType.Undefined:
@@ -24,7 +25,7 @@ namespace WBM_API.Helpers
                     }
                 case wbm_common.DataObjects.Stock.Search.SearchModeType.SingleID:
                     {
-                        rc = await _WBMDB.StockList_SearchByID(_StockSearchData.ID);
+                        rc = await _WBMDB.Stock_ListByID(_StockSearchData.ID);
                         break;
                     }
                 case wbm_common.DataObjects.Stock.Search.SearchModeType.AllRecords:
@@ -37,7 +38,7 @@ namespace WBM_API.Helpers
                         if (_StockSearchData.ListOwnerID == null || _StockSearchData.ListOwnerID.Count() != 1)
                         {
                             logger.Error("StockHelper.ExecuteSearch: Stock SingleOwner doesn't have single owner input");
-                            rc = Result.Exception<List<wbm_common.DataObjects.Stock.dbRow>>("Internal Exception occured");
+                            rc = Result.Exception<List<wbm_common.DataObjects.Stock.dbRowExtended>>("Internal Exception occured");
                             break;
                         }
                         rc = await _WBMDB.Stock_ListBySingleOwnerID(_StockSearchData.ListOwnerID[0]);
@@ -48,7 +49,7 @@ namespace WBM_API.Helpers
                         if (_StockSearchData.ListSiteID == null || _StockSearchData.ListSiteID.Count() != 1)
                         {
                             logger.Error("StockHelper.ExecuteSearch: Stock SingleSite doesn't have single site input");
-                            rc = Result.Exception<List<wbm_common.DataObjects.Stock.dbRow>>("Internal Exception occured");
+                            rc = Result.Exception<List<wbm_common.DataObjects.Stock.dbRowExtended>>("Internal Exception occured");
                             break;
                         }
                         rc = await _WBMDB.Stock_ListBySingleSiteID(_StockSearchData.ListSiteID[0]);
@@ -59,10 +60,20 @@ namespace WBM_API.Helpers
                         rc = await _WBMDB.Stock_ListByPaperlessKeyID(_StockSearchData.Paperless_KeyID);
                         break;
                     }
+                case wbm_common.DataObjects.Stock.Search.SearchModeType.Owner_ListProductCode:
+                    {
+                        rc = await _WBMDB.Stock_ListByOwnerIDListProductCode(_StockSearchData.ListProductCode, _StockSearchData.ListOwnerID[0]);
+                        break;
+                    }
+                case wbm_common.DataObjects.Stock.Search.SearchModeType.ListID:
+                    {
+                        rc = await _WBMDB.Stock_ListID(_StockSearchData.ListID);
+                        break;
+                    }
                 default:
                     {
                         logger.Error("StockHelper.ExecuteSearch: Stock Search Mode Type Error");
-                        rc = Result.Exception<List<wbm_common.DataObjects.Stock.dbRow>>("Internal Exception occured");
+                        rc = Result.Exception<List<wbm_common.DataObjects.Stock.dbRowExtended>>("Internal Exception occured");
                         break;
                     }
             }
@@ -117,6 +128,13 @@ namespace WBM_API.Helpers
 
             public Boolean Save()
             {
+                List<string> fieldErrors = DbRowValidator.requiredFieldErrors(Stock.MyRequiredList, saveRow, _WBMDB);
+                if (fieldErrors.Count() > 0)
+                {
+                    ErrorMessage = string.Join(", ", fieldErrors);
+                    ReturnState = 400;
+                    return false;
+                }
                 if (CheckExist())
                 {
                     if (Exists)
@@ -205,14 +223,14 @@ namespace WBM_API.Helpers
                     IsNew = true;
                 #endregion
 
-                #region Check that PublicID is unique
+                #region Check that ProductCode is unique
                 if (Exists && saveRow.ID == existRow.ID)
                 {
                     // Don't need to check as we are the same
                 }
                 else
                 {
-                    Result<wbm_common.DataObjects.Stock.dbRow> rcexist = _WBMDB.Stock_SearchByID(saveRow.ID).GetAwaiter().GetResult();
+                    Result<wbm_common.DataObjects.Stock.dbRow> rcexist = _WBMDB.Stock_SearchByProductCode(saveRow.ProductCode).GetAwaiter().GetResult();
 
                     if (rcexist.IsException)
                     {
@@ -226,8 +244,8 @@ namespace WBM_API.Helpers
                     else
                     {
                         // We have at least one row... :(
-                        ErrorMessage = "ID already in use, must be unique - " + saveRow.ID;
-                        logger.Error("StockSave ID " + saveRow.ID + " already exists");
+                        ErrorMessage = "ProductCode already in use, must be unique - " + saveRow.ProductCode;
+                        logger.Error("StockSave ProductCode " + saveRow.ProductCode + " already exists");
                         ReturnState = 400;
                         SavedSuccessfully = false;
                         return false;
@@ -267,22 +285,45 @@ namespace WBM_API.Helpers
 
             public Boolean Save_New()
             {
+                SavedSuccessfully = true;
+                using var transaction = _WBMDB.dbContext.Database.BeginTransaction();
+
+                transaction.CreateSavepoint("Start");
+
                 Result<int> sr = _WBMDB.Stock_Insert(saveRow).GetAwaiter().GetResult();
 
                 if (sr.IsSuccess)
                 {
                     saveRow.ID = sr.Value;
-                    return true;
+
+                    if (saveObject.ToDo != null)
+                    {
+                        saveObject.ToDo.dbRow_instance.SourceID = saveRow.ID;
+                        ChangeTracking CTO = new ChangeTracking();
+                        ToDoHelper TDH = new ToDoHelper();
+                        Result<int> todo_result = TDH.ExternalAddInTodo(_WBMDB, saveObject.ToDo.dbRow_instance);
+                        if (!todo_result.IsSuccess)
+                        {
+                            SavedSuccessfully = false;
+                            ErrorMessage = todo_result.ErrorMessage;
+                            ReturnState = 500;
+                        }
+                    }
+                    if (SavedSuccessfully)
+                    {
+                        transaction.Commit();
+                        return true;
+                    }
                 }
                 else
                 {
                     ErrorMessage = sr.ErrorMessage;
-                    if (sr.IsException)
-                        ReturnState = 500;
-                    else
-                        ReturnState = 400;
-                    return false;
+                    ReturnState = 500;
                 }
+
+                transaction.RollbackToSavepoint("Start");
+                SavedSuccessfully = false;
+                return false;
             }
 
             public Boolean Save_Update_or_Delete()
@@ -298,56 +339,36 @@ namespace WBM_API.Helpers
                 // Deletes are just an update with DeletedFlag true
                 Result<int> cuResult = _WBMDB.Stock_Update(saveRow).GetAwaiter().GetResult();
 
-                #region ChangeHeader and detail
+                #region ChangeHeader, detail and ToDo
                 if (cuResult.IsSuccess)
                 {
-                    // Insert ChangeHeader and detail entries
-                    Result<int> chResult = _WBMDB.ChangeHeader_Insert(changeHeaderRow).GetAwaiter().GetResult();
-
-                    if (chResult.IsSuccess)
-                    {
-                        changeHeaderRow.ID = chResult.Value;
-
-                        int ChangeHeaderTableID = (int)wbm_common.DataObjects.ChangeTracking.ChangeHeaderTableID.Stock;
-
-                        foreach (wbm_common.DataObjects.ChangeDetail.dbRow cdRow in ct.ListChangeDetail)
-                        {
-                            cdRow.ChangeHeaderID = changeHeaderRow.ID;
-                            cdRow.ChangeHeaderTableID = ChangeHeaderTableID;
-                            cdRow.RecordID = changeHeaderRow.RecordID;
-
-                            Result<int> cdResult = _WBMDB.ChangeDetail_Insert((wbm_common.DataObjects.ChangeDetail.dbRow)cdRow).GetAwaiter().GetResult();
-                            if (cdResult.IsFailure)
-                            {
-                                // Error occured
-                                ErrorOccured = true;
-                                ErrorMessage = cdResult.ErrorMessage;
-                                if (cdResult.IsException)
-                                    ReturnState = 500;
-                                else
-                                    ReturnState = 400;
-                                break;
-                            }
-                        }
-                    }
-                    else
+                    if (saveObject.ToDo != null)
+                        saveObject.ToDo.dbRow_instance.SourceID = cuResult.Value;
+                    ChangeTracking CTO = new ChangeTracking();
+                    string RtnError = CTO.addInChangeHeaderDetail(_WBMDB, changeHeaderRow, ct);
+                    if (RtnError != "")
                     {
                         ErrorOccured = true;
-                        ErrorMessage = chResult.ErrorMessage;
-                        if (chResult.IsException)
+                        ErrorMessage = RtnError;
+                        ReturnState = 500;
+                    }
+                    else if (saveObject.ToDo != null)
+                    {
+                        ToDoHelper TDH = new ToDoHelper();
+                        Result<int> todo_result = TDH.ExternalAddInTodo(_WBMDB, saveObject.ToDo.dbRow_instance);
+                        if (!todo_result.IsSuccess)
+                        {
+                            SavedSuccessfully = false;
+                            ErrorMessage = todo_result.ErrorMessage;
                             ReturnState = 500;
-                        else
-                            ReturnState = 400;
+                        }
                     }
                 }
                 else
                 {
                     ErrorOccured = true;
                     ErrorMessage = cuResult.ErrorMessage;
-                    if (cuResult.IsException)
-                        ReturnState = 500;
-                    else
-                        ReturnState = 400;
+                    ReturnState = 500;
                 }
                 #endregion
 

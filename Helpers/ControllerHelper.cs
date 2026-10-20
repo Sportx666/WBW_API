@@ -11,8 +11,7 @@ using System.Dynamic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using WBM_API.Helpers.Excel;
-using WBM_API.Models.ResponseObjects;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
 using static WBM_API.Helpers.LongRunProcessHelper;
 
@@ -398,6 +397,28 @@ namespace WBM_API.Helpers
                 return new APILoggingReturn
                 {
                     error = string.Join(";", validationErrors.Select(x => x.Item1 + ", " + x.Item2)),
+                    errorCode = 400,
+                    log = apiTransactionLog,
+                    genericObject = null
+                };
+            }
+            else if (model.GetType().GetProperty("CalledFrom") != null && model.GetType().GetProperty("CalledFrom").GetValue(model) == null)
+            {
+                logger.Error(APIEndPointName + " : CalledFrom is null");
+                return new APILoggingReturn
+                {
+                    error = string.Join(APIEndPointName + " : CalledFrom is null"),
+                    errorCode = 400,
+                    log = apiTransactionLog,
+                    genericObject = null
+                };
+            }
+            else if (model.GetType().GetProperty("ChangedTime") != null && model.GetType().GetProperty("ChangedTime").GetValue(model) == null)
+            {
+                logger.Error(APIEndPointName + " : ChangedTime is null");
+                return new APILoggingReturn
+                {
+                    error = string.Join(APIEndPointName + " : ChangedTime is null"),
                     errorCode = 400,
                     log = apiTransactionLog,
                     genericObject = null

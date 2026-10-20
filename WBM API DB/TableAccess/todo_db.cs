@@ -1,6 +1,7 @@
 ﻿using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
+using wbm_common.DataObjects;
 
 namespace WBM_API.WBM_API_DB
 {
@@ -45,37 +46,86 @@ namespace WBM_API.WBM_API_DB
         {
             try
             {
-                wbm_common.DataObjects.ToDo.dbRow ToDo = await _dbContext.ToDo.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.ID == ID);
+                wbm_common.DataObjects.ToDo.dbRow ToDoDb = await _dbContext.ToDo.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && x.ID == ID).FirstOrDefaultAsync();
 
-                if (ToDo == null)
+                if (ToDoDb == null)
                     return Result.Failure<wbm_common.DataObjects.ToDo.dbRow>("ToDo not found : " + ID.ToString());
                 else
-                    return Result.Success<wbm_common.DataObjects.ToDo.dbRow>(ToDo);
+                    return Result.Success<wbm_common.DataObjects.ToDo.dbRow>(ToDoDb);
 
             }
             catch (Exception ex)
             {
-                logger.Error("ToDo_SearchByPublicID - " + ID.ToString() + ": " + ex);
+                logger.Error("ToDo_SearchByID - " + ID.ToString() + ": " + ex);
                 return Result.Exception<wbm_common.DataObjects.ToDo.dbRow>("Internal Exception occured");
             }
         }
 
         //because of the way the results return work, it makes more sense to keep the result format for all and just have this be a list instead of a single return
-        public async Task<Result<List<wbm_common.DataObjects.ToDo.dbRow>>> ToDoList_SearchByID(int ID)
+        public async Task<Result<List<wbm_common.DataObjects.ToDo.dbRowExtended>>> ToDo_ListByID(int ID)
         {
             try
             {
-                wbm_common.DataObjects.ToDo.dbRow ToDo = await _dbContext.ToDo.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.ID == ID);
+                List<wbm_common.DataObjects.ToDo.dbRowExtended> ToDoDb = await (from ToDo in _dbContext.ToDo.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && x.ID == ID)
+                                                                                join site in _dbContext.Site.AsNoTracking()
+                                                                                    on ToDo.SiteID equals site.ID into sitePR
+                                                                                from SPR in sitePR.DefaultIfEmpty()
+                                                                                join company in _dbContext.Company.AsNoTracking()
+                                                                                    on ToDo.CompanyID equals company.ID into companyPR
+                                                                                from CPR in companyPR.DefaultIfEmpty()
+                                                                                join Owner in _dbContext.Owner.AsNoTracking()
+                                                                                    on ToDo.OwnerID equals Owner.ID into OwnerPR
+                                                                                from OPR in OwnerPR.DefaultIfEmpty()
+                                                                                join Category in _dbContext.ToDo_Category.AsNoTracking()
+                                                                                    on ToDo.CategoryID equals Category.ID into CategoryPR
+                                                                                from CatPR in CategoryPR.DefaultIfEmpty()
+                                                                                join ChangeHeader_TableName in _dbContext.ChangeHeader_TableName.AsNoTracking()
+                                                                                    on ToDo.ChangeHeaderTableID equals ChangeHeader_TableName.ID into ChangeHeader_TableNamePR
+                                                                                from CHPR in ChangeHeader_TableNamePR.DefaultIfEmpty()
+                                                                                join Status in _dbContext.ToDoStatus_Type.AsNoTracking()
+                                                                                    on ToDo.StatusID equals Status.ID into StatusPR
+                                                                                from StPR in StatusPR.DefaultIfEmpty()
 
-                if (ToDo == null)
-                    return Result.Success<List<wbm_common.DataObjects.ToDo.dbRow>>(new List<wbm_common.DataObjects.ToDo.dbRow>());
+                                                                                select new wbm_common.DataObjects.ToDo.dbRowExtended
+                                                                                {
+                                                                                    ID = ToDo.ID,
+                                                                                    CategoryID = ToDo.CategoryID,
+                                                                                    CompanyID = ToDo.CompanyID,
+                                                                                    OwnerID = ToDo.OwnerID,
+                                                                                    SiteID = ToDo.SiteID,
+                                                                                    EventDateTime = ToDo.EventDateTime,
+                                                                                    Description = ToDo.Description,
+                                                                                    ChangeHeaderTableID = ToDo.ChangeHeaderTableID,
+                                                                                    SourceID = ToDo.SourceID,
+                                                                                    StatusID = ToDo.StatusID,
+                                                                                    Note = ToDo.Note,
+                                                                                    DeletedFlag = ToDo.DeletedFlag,
+                                                                                    CreatedDateTime = ToDo.CreatedDateTime,
+                                                                                    CreatedMethod = ToDo.CreatedMethod,
+                                                                                    CreatedUserID = ToDo.CreatedUserID,
+                                                                                    LastAmendedDateTime = ToDo.LastAmendedDateTime,
+                                                                                    LastAmendedMethod = ToDo.LastAmendedMethod,
+                                                                                    LastAmendedUserID = ToDo.LastAmendedUserID,
+
+                                                                                    Site_PublicID = SPR.PublicID,
+                                                                                    Company_ShortName = CPR.ShortName,
+                                                                                    ToDoCategory_PublicID = CatPR.PublicID,
+                                                                                    Owner_Name = OPR.Name,
+                                                                                    ChangeHeaderTable_Name = CHPR.TableName,
+                                                                                    ToDoStatusType_PublicID = StPR.PublicID
+                                                                                }).ToListAsync();
+
+                if (ToDoDb == null)
+                    return Result.Success<List<wbm_common.DataObjects.ToDo.dbRowExtended>>(new List<wbm_common.DataObjects.ToDo.dbRowExtended>());
                 else
-                    return Result.Success<List<wbm_common.DataObjects.ToDo.dbRow>>(new List<wbm_common.DataObjects.ToDo.dbRow> { ToDo });
+                    return Result.Success<List<wbm_common.DataObjects.ToDo.dbRowExtended>>(ToDoDb);
             }
             catch (Exception ex)
             {
-                logger.Error("ToDo_SearchByID - " + ID.ToString() + ": " + ex);
-                return Result.Exception<List<wbm_common.DataObjects.ToDo.dbRow>>("Internal Exception occured");
+                logger.Error("ToDo_ListByID - " + ID.ToString() + ": " + ex);
+                return Result.Exception<List<wbm_common.DataObjects.ToDo.dbRowExtended>>("Internal Exception occured");
             }
         }
 
@@ -84,12 +134,13 @@ namespace WBM_API.WBM_API_DB
         {
             try
             {
-                wbm_common.DataObjects.ToDo.dbRow ToDo = await _dbContext.ToDo.AsNoTracking().FirstOrDefaultAsync(x => x.ID == ID);
+                wbm_common.DataObjects.ToDo.dbRow ToDoDb = await _dbContext.ToDo.AsNoTracking()
+                                                                        .Where(x => x.ID == ID).FirstOrDefaultAsync();
 
-                if (ToDo == null)
+                if (ToDoDb == null)
                     return Result.Failure<wbm_common.DataObjects.ToDo.dbRow>("ToDo not found : " + ID.ToString());
                 else
-                    return Result.Success<wbm_common.DataObjects.ToDo.dbRow>(ToDo);
+                    return Result.Success<wbm_common.DataObjects.ToDo.dbRow>(ToDoDb);
             }
             catch (Exception ex)
             {
@@ -98,55 +149,104 @@ namespace WBM_API.WBM_API_DB
             }
         }
 
-        public async Task<Result<List<wbm_common.DataObjects.ToDo.dbRow>>> ToDo_List()
+        public async Task<Result<List<wbm_common.DataObjects.ToDo.dbRowExtended>>> ToDo_List()
         {
             try
             {
-                List<wbm_common.DataObjects.ToDo.dbRow> ToDos = await _dbContext.ToDo.AsNoTracking().Where(x => !x.DeletedFlag).ToListAsync();
+                List<wbm_common.DataObjects.ToDo.dbRowExtended> ToDos = await (from ToDo in _dbContext.ToDo.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag)
+                                                                               join site in _dbContext.Site.AsNoTracking()
+                                                                                   on ToDo.SiteID equals site.ID into sitePR
+                                                                               from SPR in sitePR.DefaultIfEmpty()
+                                                                               join company in _dbContext.Company.AsNoTracking()
+                                                                                   on ToDo.CompanyID equals company.ID into companyPR
+                                                                               from CPR in companyPR.DefaultIfEmpty()
+                                                                               join Owner in _dbContext.Owner.AsNoTracking()
+                                                                                   on ToDo.OwnerID equals Owner.ID into OwnerPR
+                                                                               from OPR in OwnerPR.DefaultIfEmpty()
+                                                                               join Category in _dbContext.ToDo_Category.AsNoTracking()
+                                                                                   on ToDo.CategoryID equals Category.ID into CategoryPR
+                                                                               from CatPR in CategoryPR.DefaultIfEmpty()
+                                                                               join ChangeHeader_TableName in _dbContext.ChangeHeader_TableName.AsNoTracking()
+                                                                                   on ToDo.ChangeHeaderTableID equals ChangeHeader_TableName.ID into ChangeHeader_TableNamePR
+                                                                               from CHPR in ChangeHeader_TableNamePR.DefaultIfEmpty()
+                                                                               join Status in _dbContext.ToDoStatus_Type.AsNoTracking()
+                                                                                   on ToDo.StatusID equals Status.ID into StatusPR
+                                                                               from StPR in StatusPR.DefaultIfEmpty()
 
-                return Result.Success<List<wbm_common.DataObjects.ToDo.dbRow>>(ToDos);
+                                                                               select new wbm_common.DataObjects.ToDo.dbRowExtended
+                                                                               {
+                                                                                   ID = ToDo.ID,
+                                                                                   CategoryID = ToDo.CategoryID,
+                                                                                   CompanyID = ToDo.CompanyID,
+                                                                                   OwnerID = ToDo.OwnerID,
+                                                                                   SiteID = ToDo.SiteID,
+                                                                                   EventDateTime = ToDo.EventDateTime,
+                                                                                   Description = ToDo.Description,
+                                                                                   ChangeHeaderTableID = ToDo.ChangeHeaderTableID,
+                                                                                   SourceID = ToDo.SourceID,
+                                                                                   StatusID = ToDo.StatusID,
+                                                                                   Note = ToDo.Note,
+                                                                                   DeletedFlag = ToDo.DeletedFlag,
+                                                                                   CreatedDateTime = ToDo.CreatedDateTime,
+                                                                                   CreatedMethod = ToDo.CreatedMethod,
+                                                                                   CreatedUserID = ToDo.CreatedUserID,
+                                                                                   LastAmendedDateTime = ToDo.LastAmendedDateTime,
+                                                                                   LastAmendedMethod = ToDo.LastAmendedMethod,
+                                                                                   LastAmendedUserID = ToDo.LastAmendedUserID,
+
+                                                                                   Site_PublicID = SPR.PublicID,
+                                                                                   Company_ShortName = CPR.ShortName,
+                                                                                   ToDoCategory_PublicID = CatPR.PublicID,
+                                                                                   Owner_Name = OPR.Name,
+                                                                                   ChangeHeaderTable_Name = CHPR.TableName,
+                                                                                   ToDoStatusType_PublicID = StPR.PublicID
+                                                                               }).ToListAsync();
+
+                return Result.Success<List<wbm_common.DataObjects.ToDo.dbRowExtended>>(ToDos);
             }
             catch (Exception ex)
             {
                 logger.Error("ToDo_List: " + ex);
 
-                return Result.Exception<List<wbm_common.DataObjects.ToDo.dbRow>>("Internal Exception occured");
+                return Result.Exception<List<wbm_common.DataObjects.ToDo.dbRowExtended>>("Internal Exception occured");
             }
         }
 
-        public async Task<Result<List<wbm_common.DataObjects.ToDo.dbRow>>> ToDo_ListByListIDs(List<int> IDs)
+        public async Task<Result<List<wbm_common.DataObjects.ToDo.dbRow>>> ToDo_ListWithDeletedByListIDs(List<int> IDs)
         {
             if (IDs == null || IDs.Count == 0)
             {
-                logger.Error("ToDo_ListByListIDs was null or blank ");
+                logger.Error("ToDo_ListWithDeletedByListIDs was null or blank ");
                 return Result.Failure<List<wbm_common.DataObjects.ToDo.dbRow>>("IDs list is null or empty");
             }
             else
             {
                 try
                 {
-                    List<wbm_common.DataObjects.ToDo.dbRow> ToDos = await _dbContext.ToDo.AsNoTracking().Where(x => !x.DeletedFlag && IDs.Contains(x.ID)).ToListAsync();
+                    List<wbm_common.DataObjects.ToDo.dbRow> ToDos = await _dbContext.ToDo.AsNoTracking()
+                                                                        .Where(x => IDs.Contains(x.ID)).ToListAsync();
                     return Result.Success<List<wbm_common.DataObjects.ToDo.dbRow>>(ToDos);
                 }
                 catch (Exception ex)
                 {
-                    logger.Error("ToDo_ListByListIDs: " + ex);
+                    logger.Error("ToDo_ListWithDeletedByListIDs: " + ex);
                     return Result.Exception<List<wbm_common.DataObjects.ToDo.dbRow>>("Internal Exception occured");
                 }
             }
         }
 
-        public async Task<Result<List<wbm_common.DataObjects.ToDo.dbRow>>> ToDo_ListBySql(string sqlString, List<SqlParameter> ListSqlParameter)
+        public async Task<Result<List<wbm_common.DataObjects.ToDo.dbRowExtended>>> ToDo_ListBySql(string sqlString, List<SqlParameter> ListSqlParameter)
         {
             try
             {
-                List<wbm_common.DataObjects.ToDo.dbRow> ToDos = await _dbContext.ToDo.FromSqlRaw(sqlString, ListSqlParameter.ToArray()).ToListAsync();
-                return Result.Success<List<wbm_common.DataObjects.ToDo.dbRow>>(ToDos);
+                List<wbm_common.DataObjects.ToDo.dbRowExtended> ToDos = await _dbContext.Database.SqlQueryRaw<wbm_common.DataObjects.ToDo.dbRowExtended>(sqlString, ListSqlParameter.ToArray()).ToListAsync();
+                return Result.Success<List<wbm_common.DataObjects.ToDo.dbRowExtended>>(ToDos);
             }
             catch (Exception ex)
             {
                 logger.Error("ToDo_ListBySql -  " + sqlString + " : ex = " + ex);
-                return Result.Exception<List<wbm_common.DataObjects.ToDo.dbRow>>("Internal Exception occured");
+                return Result.Exception<List<wbm_common.DataObjects.ToDo.dbRowExtended>>("Internal Exception occured");
             }
         }
         #endregion
@@ -186,27 +286,27 @@ namespace WBM_API.WBM_API_DB
         }
 
         // read and search are different because of the deleted flag
-        public async Task<Result<wbm_common.DataObjects.ToDo_Category.dbRow>> ToDo_Category_SearchByID(int ID)
+        public async Task<Result<wbm_common.DataObjects.ToDo_Category.dbRow>> ToDo_Category_SearchByPublicID(string PublicID)
         {
             try
             {
-                wbm_common.DataObjects.ToDo_Category.dbRow ToDo_Category = await _dbContext.ToDo_Category.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.ID == ID);
+                wbm_common.DataObjects.ToDo_Category.dbRow ToDo_Category = await _dbContext.ToDo_Category.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.PublicID == PublicID);
 
                 if (ToDo_Category == null)
-                    return Result.Failure<wbm_common.DataObjects.ToDo_Category.dbRow>("ToDo_Category not found : " + ID.ToString());
+                    return Result.Failure<wbm_common.DataObjects.ToDo_Category.dbRow>("ToDo_Category not found : " + PublicID);
                 else
                     return Result.Success<wbm_common.DataObjects.ToDo_Category.dbRow>(ToDo_Category);
 
             }
             catch (Exception ex)
             {
-                logger.Error("ToDo_Category_SearchByPublicID - " + ID.ToString() + ": " + ex);
+                logger.Error("ToDo_Category_SearchByPublicID - " + PublicID + ": " + ex);
                 return Result.Exception<wbm_common.DataObjects.ToDo_Category.dbRow>("Internal Exception occured");
             }
         }
 
         //because of the way the results return work, it makes more sense to keep the result format for all and just have this be a list instead of a single return
-        public async Task<Result<List<wbm_common.DataObjects.ToDo_Category.dbRow>>> ToDo_CategoryList_SearchByID(int ID)
+        public async Task<Result<List<wbm_common.DataObjects.ToDo_Category.dbRow>>> ToDo_Category_ListByID(int ID)
         {
             try
             {
@@ -219,7 +319,7 @@ namespace WBM_API.WBM_API_DB
             }
             catch (Exception ex)
             {
-                logger.Error("ToDo_Category_SearchByID - " + ID.ToString() + ": " + ex);
+                logger.Error("ToDo_Category_ListByID - " + ID.ToString() + ": " + ex);
                 return Result.Exception<List<wbm_common.DataObjects.ToDo_Category.dbRow>>("Internal Exception occured");
             }
         }
@@ -331,27 +431,27 @@ namespace WBM_API.WBM_API_DB
         }
 
         // read and search are different because of the deleted flag
-        public async Task<Result<wbm_common.DataObjects.ToDoStatus_Type.dbRow>> ToDoStatus_Type_SearchByID(int ID)
+        public async Task<Result<wbm_common.DataObjects.ToDoStatus_Type.dbRow>> ToDoStatus_Type_SearchByPublicID(string PublicID)
         {
             try
             {
-                wbm_common.DataObjects.ToDoStatus_Type.dbRow ToDoStatus_Type = await _dbContext.ToDoStatus_Type.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.ID == ID);
+                wbm_common.DataObjects.ToDoStatus_Type.dbRow ToDoStatus_Type = await _dbContext.ToDoStatus_Type.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.PublicID == PublicID);
 
                 if (ToDoStatus_Type == null)
-                    return Result.Failure<wbm_common.DataObjects.ToDoStatus_Type.dbRow>("ToDoStatus_Type not found : " + ID.ToString());
+                    return Result.Failure<wbm_common.DataObjects.ToDoStatus_Type.dbRow>("ToDoStatus_Type not found : " + PublicID);
                 else
                     return Result.Success<wbm_common.DataObjects.ToDoStatus_Type.dbRow>(ToDoStatus_Type);
 
             }
             catch (Exception ex)
             {
-                logger.Error("ToDoStatus_Type_SearchByPublicID - " + ID.ToString() + ": " + ex);
+                logger.Error("ToDoStatus_Type_SearchByPublicID - " + PublicID + ": " + ex);
                 return Result.Exception<wbm_common.DataObjects.ToDoStatus_Type.dbRow>("Internal Exception occured");
             }
         }
 
         //because of the way the results return work, it makes more sense to keep the result format for all and just have this be a list instead of a single return
-        public async Task<Result<List<wbm_common.DataObjects.ToDoStatus_Type.dbRow>>> ToDoStatus_TypeList_SearchByID(int ID)
+        public async Task<Result<List<wbm_common.DataObjects.ToDoStatus_Type.dbRow>>> ToDoStatus_Type_ListByID(int ID)
         {
             try
             {
@@ -364,7 +464,7 @@ namespace WBM_API.WBM_API_DB
             }
             catch (Exception ex)
             {
-                logger.Error("ToDoStatus_Type_SearchByID - " + ID.ToString() + ": " + ex);
+                logger.Error("ToDoStatus_Type_ListByID - " + ID.ToString() + ": " + ex);
                 return Result.Exception<List<wbm_common.DataObjects.ToDoStatus_Type.dbRow>>("Internal Exception occured");
             }
         }

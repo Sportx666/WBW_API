@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 using wbm_common;
 using wbm_common.DataObjects;
 
@@ -32,6 +32,9 @@ namespace WBM_API.WBM_API_DB
         public DbSet<wbm_common.DataObjects.ActionRateCode.dbRow> ActionRateCode { get; set; }
 
         public DbSet<wbm_common.DataObjects.ActionType.dbRow> ActionType { get; set; }
+
+        public DbSet<wbm_common.DataObjects.AwaitingPurchOrdDW.dbRow> AwaitingPurchOrdDW { get; set; }
+        public DbSet<wbm_common.DataObjects.AwaitingPickHeadDW.dbRow> AwaitingPickHeadDW { get; set; }
 
         public DbSet<wbm_common.DataObjects.Carrier.dbRow> Carrier { get; set; }
 
@@ -69,6 +72,11 @@ namespace WBM_API.WBM_API_DB
 
         public DbSet<wbm_common.DataObjects.InvoiceCycleHistory.dbRow> InvoiceCycleHistory { get; set; }
 
+        public DbSet<wbm_common.DataObjects.InvoiceHeader.dbRow> InvoiceHeader { get; set; }
+        public DbSet<wbm_common.DataObjects.InvoiceReportGroup.dbRow> InvoiceReportGroup { get; set; }
+        public DbSet<wbm_common.DataObjects.InvoiceReportGroupDefn.dbRow> InvoiceReportGroupDefn { get; set; }
+        public DbSet<wbm_common.DataObjects.InvoiceReportGroupMember.dbRow> InvoiceReportGroupMember { get; set; }
+
         public DbSet<wbm_common.DataObjects.Location.dbRow> Location { get; set; }
 
         public DbSet<wbm_common.DataObjects.Log.dbRow> Log { get; set; }
@@ -91,6 +99,8 @@ namespace WBM_API.WBM_API_DB
 
         public DbSet<wbm_common.DataObjects.Owner.dbRow> Owner { get; set; }
 
+        public DbSet<wbm_common.DataObjects.PalletType.dbRow> PalletType { get; set; }
+
         public DbSet<wbm_common.DataObjects.PalletStorageType.dbRow> PalletStorageType { get; set; }
 
         public DbSet<wbm_common.DataObjects.PaperlessDataType.dbRow> PaperlessDataType { get; set; }
@@ -101,6 +111,8 @@ namespace WBM_API.WBM_API_DB
 
         public DbSet<wbm_common.DataObjects.PriorityOrder.dbRow> PriorityOrder { get; set; }
 
+        public DbSet<wbm_common.DataObjects.Process.dbRow> Process { get; set; }
+        public DbSet<wbm_common.DataObjects.ProcessCategory.dbRow> ProcessCategory { get; set; }
         public DbSet<wbm_common.DataObjects.ProcessingRule.dbRow> ProcessingRule { get; set; }
 
         public DbSet<wbm_common.DataObjects.ProcessingRuleDefn.dbRow> ProcessingRuleDefn { get; set; }
@@ -172,6 +184,8 @@ namespace WBM_API.WBM_API_DB
         public DbSet<wbm_common.DataObjects.TransactionNotes.dbRow> TransactionNotes { get; set; }
 
         public DbSet<wbm_common.DataObjects.TransactionSource.dbRow> TransactionSource { get; set; }
+
+        public DbSet<wbm_common.DataObjects.TransactionType.dbRow> TransactionType { get; set; }
 
         public DbSet<wbm_common.DataObjects.UnitType.dbRow> UnitType { get; set; }
 

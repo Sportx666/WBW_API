@@ -1,11 +1,9 @@
-﻿using Azure.Core;
-using CTI.WebApi.Models.RequestObjects;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NLog.Web;
 using System.Text;
 using WBM_API.Helpers;
-using WBM_API.Models.ResponseObjects;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
 
 namespace WBM_API.Controllers

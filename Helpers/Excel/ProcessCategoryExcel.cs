@@ -1,0 +1,177 @@
+﻿using Microsoft.AspNetCore.SignalR;
+using NLog;
+using NLog.Web;
+using OfficeOpenXml;
+using OfficeOpenXml.Style;
+using wbm_common.NonDatabaseObjects;
+using WBM_API.WBM_API_DB;
+using wbm_common.DataObjects;
+
+
+namespace WBM_API.Helpers.Excel
+{
+    public class ProcessCategoryExcel
+    {
+        private static Logger logger = LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
+        public MemoryStream ms;
+
+        private readonly WBMDatabase _WBMDB;
+
+        public List<wbm_common.DataObjects.Company.dbRow> companies = null;
+        public List<wbm_common.DataObjects.Site.dbRow> sites = null;
+        public List<wbm_common.DataObjects.Security_User.dbRow> users = null;
+        public List<wbm_common.DataObjects.ProcessCategory.dbRow> ProcessCategorys = null;
+        public Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> CallBackStatusFunction { get; set; }
+        private IHubCallerClients Clients;
+        public wbm_common.DataObjects.LongRunProcessHeader.dbRow lrph { get; set; }
+        public string ErrorMessage { get; set; }
+
+        public Boolean HasErrors = false;
+
+        public wbm_common.DataObjects.ProcessCategory.Search ProcessCategorySearchData;
+        public ProcessCategoryExcel(wbm_common.DataObjects.ProcessCategory.Search ProcessCategorySearchData, WBMDatabase wBMDB)
+        {
+            ms = new MemoryStream();
+
+            this.ProcessCategorySearchData = ProcessCategorySearchData;
+            _WBMDB = wBMDB;
+        }
+        public async Task<bool> GenerateExcel(Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> inCallBackStatusFunction = null, IHubCallerClients inClients = null, wbm_common.DataObjects.LongRunProcessHeader.dbRow longRunProcessHeader = null)
+        {
+            CallBackStatusFunction = inCallBackStatusFunction;
+            Clients = inClients;
+            lrph = longRunProcessHeader;
+            if (await GetData())
+            {
+                try
+                {
+                    using (ExcelPackage ep = new ExcelPackage(ms))
+                    {
+                        ProcessCategoryPage(ep);
+                        ep.Save();
+                    }
+                }
+                catch (Exception excpt)
+                {
+                    logger.Error("ProcessCategoryExcelReport: " + excpt.Message);
+                    return false;
+                }
+            }
+            else
+                HasErrors = true;
+
+            return !HasErrors;
+        }
+
+        private async Task<bool> callCallBackFunctionFunction(string StatusDescription, int CurC, int maxc)
+        {
+            if (CallBackStatusFunction != null)
+                await CallBackStatusFunction(Clients, _WBMDB, StatusDescription, CurC, maxc, lrph);
+            return true;
+        }
+
+        private async Task<bool> GetData()
+        {
+
+            Result<List<wbm_common.DataObjects.ProcessCategory.dbRow>> rc = await ProcessCategoryHelper.ExecuteSearch(ProcessCategorySearchData, _WBMDB);
+
+            if (rc.IsFailure)
+            {
+                ErrorMessage = rc.ErrorMessage;
+                HasErrors = true;
+                return false;
+            }
+
+            ProcessCategorys = rc.Value;
+
+            // Build list of IDs to retrieve related data
+            List<int> ListUserID = ProcessCategorys.Select(x => x.CreatedUserID).Union(ProcessCategorys.Select(x => x.LastAmendedUserID)).Distinct().ToList();
+
+            if (ListUserID.Count > 0)
+            {
+                Result<List<wbm_common.DataObjects.Security_User.dbRow>> userResults = _WBMDB.SecurityUser_ListByListID(ListUserID).GetAwaiter().GetResult();
+                if (userResults.IsFailure || userResults.IsException)
+                {
+                    ErrorMessage = ErrorCodes.GeneralDB.ToString();
+                    return false;
+                }
+                users = userResults.Value;
+            }
+
+            return true;
+        }
+
+        private void ProcessCategoryPage(ExcelPackage ep)
+        {
+            ExcelWorksheet ProcessCategoryWS = ep.Workbook.Worksheets.Add("ProcessCategory");
+
+            #region header
+            ProcessCategoryWS.View.FreezePanes(2, 1);
+            ProcessCategoryWS.Cells[1, 1, 1, 12].Style.Font.Bold = true;
+            ProcessCategoryWS.Cells[1, 1, 1, 12].Style.Border.Bottom.Style = ExcelBorderStyle.Thick;
+            ProcessCategoryWS.Column(1).Width = 12;
+            ProcessCategoryWS.Column(2).Width = 25;
+            ProcessCategoryWS.Column(3).Width = 25;
+            ProcessCategoryWS.Column(4).Width = 25;
+            ProcessCategoryWS.Column(4).Style.Numberformat.Format = "dd/mm/yy HH:mm";
+            ProcessCategoryWS.Column(5).Width = 25;
+            ProcessCategoryWS.Column(6).Width = 25;
+            ProcessCategoryWS.Column(7).Width = 25;
+            ProcessCategoryWS.Column(8).Style.Numberformat.Format = "dd/mm/yy HH:mm";
+            ProcessCategoryWS.Column(9).Width = 25;
+            ProcessCategoryWS.Column(10).Width = 25;
+            ProcessCategoryWS.Column(11).Width = 25;
+            ProcessCategoryWS.Column(12).Width = 15;
+
+            ProcessCategoryWS.Cells[1, 1].Value = "Public ID";
+            ProcessCategoryWS.Cells[1, 2].Value = "Description";
+            ProcessCategoryWS.Cells[1, 3].Value = "Sort Order";
+            ProcessCategoryWS.Cells[1, 4].Value = "Created DateTime";
+            ProcessCategoryWS.Cells[1, 5].Value = "Created Method";
+            ProcessCategoryWS.Cells[1, 6].Value = "Created User";
+            ProcessCategoryWS.Cells[1, 7].Value = "Created User Name";
+            ProcessCategoryWS.Cells[1, 8].Value = "Last Amended DateTime";
+            ProcessCategoryWS.Cells[1, 9].Value = "Last Amended Method";
+            ProcessCategoryWS.Cells[1, 10].Value = "Last Amended User";
+            ProcessCategoryWS.Cells[1, 11].Value = "Last Amended Name";
+            ProcessCategoryWS.Cells[1, 12].Value = "Deleted Flag";
+            #endregion
+
+            #region processing
+            int rc = 2;
+            for (int i = 0; i < ProcessCategorys.Count(); i++)
+            {
+                ProcessCategoryWS.Cells[rc, 1].Value = ProcessCategorys[i].PublicID;
+                ProcessCategoryWS.Cells[rc, 2].Value = ProcessCategorys[i].Description;
+                ProcessCategoryWS.Cells[rc, 3].Value = ProcessCategorys[i].SortOrder;
+
+                ProcessCategoryWS.Cells[rc, 4].Value = ProcessCategorys[i].CreatedDateTime.ToOADate();
+                ProcessCategoryWS.Cells[rc, 5].Value = ProcessCategorys[i].CreatedMethod;
+
+                if (users.Any(x => x.ID == ProcessCategorys[i].CreatedUserID))
+                {
+                    ProcessCategoryWS.Cells[rc, 6].Value = users.FirstOrDefault(x => x.ID == ProcessCategorys[i].CreatedUserID).Firstname;
+                    ProcessCategoryWS.Cells[rc, 7].Value = users.FirstOrDefault(x => x.ID == ProcessCategorys[i].CreatedUserID).PublicID;
+                }
+                else
+                    ProcessCategoryWS.Cells[rc, 6].Value = "UserID: " + ProcessCategorys[i].CreatedUserID.ToString();
+
+                ProcessCategoryWS.Cells[rc, 8].Value = ProcessCategorys[i].LastAmendedDateTime.ToOADate();
+                ProcessCategoryWS.Cells[rc, 9].Value = ProcessCategorys[i].LastAmendedMethod;
+
+                if (users.Any(x => x.ID == ProcessCategorys[i].LastAmendedUserID))
+                {
+                    ProcessCategoryWS.Cells[rc, 10].Value = users.FirstOrDefault(x => x.ID == ProcessCategorys[i].LastAmendedUserID).Firstname;
+                    ProcessCategoryWS.Cells[rc, 11].Value = users.FirstOrDefault(x => x.ID == ProcessCategorys[i].LastAmendedUserID).PublicID;
+                }
+                else
+                    ProcessCategoryWS.Cells[rc, 10].Value = "UserID: " + ProcessCategorys[i].LastAmendedUserID.ToString();
+
+                ProcessCategoryWS.Cells[rc, 12].Value = ProcessCategorys[i].DeletedFlag;
+
+                rc++;
+            }
+            #endregion
+        }
+    }
+}

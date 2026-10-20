@@ -1,6 +1,8 @@
 ﻿using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using WBM_API.Models;
+using System.ComponentModel.Design;
+using wbm_common.NonDatabaseObjects;
+using wbm_common.DataObjects;
 
 namespace WBM_API.WBM_API_DB
 {
@@ -61,7 +63,7 @@ namespace WBM_API.WBM_API_DB
         }
 
         //because of the way the results return work, it makes more sense to keep the result format for all and just have this be a list instead of a single return
-        public async Task<Result<List<wbm_common.DataObjects.InvoiceCycle.dbRow>>> InvoiceCycleList_SearchByID(int ID)
+        public async Task<Result<List<wbm_common.DataObjects.InvoiceCycle.dbRow>>> InvoiceCycle_ListByID(int ID)
         {
             try
             {
@@ -74,7 +76,7 @@ namespace WBM_API.WBM_API_DB
             }
             catch (Exception ex)
             {
-                logger.Error("InvoiceCycle_SearchByID - " + ID.ToString() + ": " + ex);
+                logger.Error("InvoiceCycle_ListByID - " + ID.ToString() + ": " + ex);
                 return Result.Exception<List<wbm_common.DataObjects.InvoiceCycle.dbRow>>("Internal Exception occured");
             }
         }
@@ -190,37 +192,63 @@ namespace WBM_API.WBM_API_DB
         {
             try
             {
-                wbm_common.DataObjects.InvoiceCycleCurrent.dbRow InvoiceCycleCurrent = await _dbContext.InvoiceCycleCurrent.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.ID == ID);
+                wbm_common.DataObjects.InvoiceCycleCurrent.dbRow InvoiceCycleCurrentDb = await _dbContext.InvoiceCycleCurrent.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && x.ID == ID).FirstOrDefaultAsync();
 
-                if (InvoiceCycleCurrent == null)
+                if (InvoiceCycleCurrentDb == null)
                     return Result.Failure<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>("InvoiceCycleCurrent not found : " + ID.ToString());
                 else
-                    return Result.Success<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>(InvoiceCycleCurrent);
+                    return Result.Success<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>(InvoiceCycleCurrentDb);
 
             }
             catch (Exception ex)
             {
-                logger.Error("InvoiceCycleCurrent_SearchByPublicID - " + ID.ToString() + ": " + ex);
+                logger.Error("InvoiceCycleCurrent_SearchByID - " + ID.ToString() + ": " + ex);
                 return Result.Exception<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>("Internal Exception occured");
             }
         }
 
         //because of the way the results return work, it makes more sense to keep the result format for all and just have this be a list instead of a single return
-        public async Task<Result<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>>> InvoiceCycleCurrentList_SearchByID(int ID)
+        public async Task<Result<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRowExtended>>> InvoiceCycleCurrent_ListByID(int ID)
         {
             try
             {
-                wbm_common.DataObjects.InvoiceCycleCurrent.dbRow InvoiceCycleCurrent = await _dbContext.InvoiceCycleCurrent.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.ID == ID);
+                List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRowExtended> InvoiceCycleCurrentDb = await (from InvoiceCycleCurrent in _dbContext.InvoiceCycleCurrent.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && x.ID == ID)
+                                                                                                              join company in _dbContext.Company.AsNoTracking()
+                                                                                                                  on InvoiceCycleCurrent.CompanyID equals company.ID into companyPR
+                                                                                                              from CPR in companyPR.DefaultIfEmpty()
+                                                                                                              join InvoiceCycle in _dbContext.InvoiceCycle.AsNoTracking()
+                                                                                                        on InvoiceCycleCurrent.InvoiceCycleID equals InvoiceCycle.ID into InvoiceCyclePR
+                                                                                                              from ICPR in InvoiceCyclePR.DefaultIfEmpty()
 
-                if (InvoiceCycleCurrent == null)
-                    return Result.Success<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>>(new List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>());
+                                                                                                              select new wbm_common.DataObjects.InvoiceCycleCurrent.dbRowExtended
+                                                                                                              {
+                                                                                                                  ID = InvoiceCycleCurrent.ID,
+                                                                                                                  CompanyID = InvoiceCycleCurrent.CompanyID,
+                                                                                                                  InvoiceCycleID = InvoiceCycleCurrent.InvoiceCycleID,
+                                                                                                                  CurrentPeriodEnding = InvoiceCycleCurrent.CurrentPeriodEnding,
+                                                                                                                  DeletedFlag = InvoiceCycleCurrent.DeletedFlag,
+                                                                                                                  CreatedDateTime = InvoiceCycleCurrent.CreatedDateTime,
+                                                                                                                  CreatedMethod = InvoiceCycleCurrent.CreatedMethod,
+                                                                                                                  CreatedUserID = InvoiceCycleCurrent.CreatedUserID,
+                                                                                                                  LastAmendedDateTime = InvoiceCycleCurrent.LastAmendedDateTime,
+                                                                                                                  LastAmendedMethod = InvoiceCycleCurrent.LastAmendedMethod,
+                                                                                                                  LastAmendedUserID = InvoiceCycleCurrent.LastAmendedUserID,
+
+                                                                                                                  InvoiceCycle_PublicID = ICPR.PublicID,
+                                                                                                                  Company_ShortName = CPR.ShortName
+                                                                                                              }).ToListAsync();
+
+                if (InvoiceCycleCurrentDb == null)
+                    return Result.Success<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRowExtended>>(new List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRowExtended>());
                 else
-                    return Result.Success<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>>(new List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow> { InvoiceCycleCurrent });
+                    return Result.Success<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRowExtended>>(InvoiceCycleCurrentDb);
             }
             catch (Exception ex)
             {
-                logger.Error("InvoiceCycleCurrent_SearchByID - " + ID.ToString() + ": " + ex);
-                return Result.Exception<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>>("Internal Exception occured");
+                logger.Error("InvoiceCycleCurrent_ListByID - " + ID.ToString() + ": " + ex);
+                return Result.Exception<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRowExtended>>("Internal Exception occured");
             }
         }
 
@@ -229,12 +257,13 @@ namespace WBM_API.WBM_API_DB
         {
             try
             {
-                wbm_common.DataObjects.InvoiceCycleCurrent.dbRow InvoiceCycleCurrent = await _dbContext.InvoiceCycleCurrent.AsNoTracking().FirstOrDefaultAsync(x => x.ID == ID);
+                wbm_common.DataObjects.InvoiceCycleCurrent.dbRow InvoiceCycleCurrentDb = await _dbContext.InvoiceCycleCurrent.AsNoTracking()
+                                                                        .Where(x => x.ID == ID).FirstOrDefaultAsync();
 
-                if (InvoiceCycleCurrent == null)
+                if (InvoiceCycleCurrentDb == null)
                     return Result.Failure<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>("InvoiceCycleCurrent not found : " + ID.ToString());
                 else
-                    return Result.Success<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>(InvoiceCycleCurrent);
+                    return Result.Success<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>(InvoiceCycleCurrentDb);
             }
             catch (Exception ex)
             {
@@ -243,55 +272,138 @@ namespace WBM_API.WBM_API_DB
             }
         }
 
-        public async Task<Result<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>>> InvoiceCycleCurrent_List()
+        public async Task<Result<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRowExtended>>> InvoiceCycleCurrent_List()
         {
             try
             {
-                List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow> InvoiceCycleCurrents = await _dbContext.InvoiceCycleCurrent.AsNoTracking().Where(x => !x.DeletedFlag).ToListAsync();
+                List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRowExtended> InvoiceCycleCurrents = await (from InvoiceCycleCurrent in _dbContext.InvoiceCycleCurrent.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag)
+                                                                                                             join company in _dbContext.Company.AsNoTracking()
+                                                                                                                 on InvoiceCycleCurrent.CompanyID equals company.ID into companyPR
+                                                                                                             from CPR in companyPR.DefaultIfEmpty()
+                                                                                                             join InvoiceCycle in _dbContext.InvoiceCycle.AsNoTracking()
+                                                                                                       on InvoiceCycleCurrent.InvoiceCycleID equals InvoiceCycle.ID into InvoiceCyclePR
+                                                                                                             from ICPR in InvoiceCyclePR.DefaultIfEmpty()
 
-                return Result.Success<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>>(InvoiceCycleCurrents);
+                                                                                                             select new wbm_common.DataObjects.InvoiceCycleCurrent.dbRowExtended
+                                                                                                             {
+                                                                                                                 ID = InvoiceCycleCurrent.ID,
+                                                                                                                 CompanyID = InvoiceCycleCurrent.CompanyID,
+                                                                                                                 InvoiceCycleID = InvoiceCycleCurrent.InvoiceCycleID,
+                                                                                                                 CurrentPeriodEnding = InvoiceCycleCurrent.CurrentPeriodEnding,
+                                                                                                                 DeletedFlag = InvoiceCycleCurrent.DeletedFlag,
+                                                                                                                 CreatedDateTime = InvoiceCycleCurrent.CreatedDateTime,
+                                                                                                                 CreatedMethod = InvoiceCycleCurrent.CreatedMethod,
+                                                                                                                 CreatedUserID = InvoiceCycleCurrent.CreatedUserID,
+                                                                                                                 LastAmendedDateTime = InvoiceCycleCurrent.LastAmendedDateTime,
+                                                                                                                 LastAmendedMethod = InvoiceCycleCurrent.LastAmendedMethod,
+                                                                                                                 LastAmendedUserID = InvoiceCycleCurrent.LastAmendedUserID,
+
+                                                                                                                 InvoiceCycle_PublicID = ICPR.PublicID,
+                                                                                                                 Company_ShortName = CPR.ShortName
+                                                                                                             }).ToListAsync();
+
+                return Result.Success<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRowExtended>>(InvoiceCycleCurrents);
             }
             catch (Exception ex)
             {
                 logger.Error("InvoiceCycleCurrent_List: " + ex);
 
+                return Result.Exception<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRowExtended>>("Internal Exception occured");
+            }
+        }
+
+        public async Task<Result<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>>> InvoiceCycleCurrent_ListForCompany(int CompanyID)
+        {
+            try
+            {
+                List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow> ListInvoiceCycleCurrent = await _dbContext.InvoiceCycleCurrent.AsNoTracking().Where(x => !x.DeletedFlag && x.CompanyID == CompanyID).ToListAsync();
+
+                return Result.Success<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>>(ListInvoiceCycleCurrent);
+            }
+            catch (Exception ex)
+            {
+                logger.Error("InvoiceCycleCurrent_ListForCompany: " + ex);
+
                 return Result.Exception<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>>("Internal Exception occured");
             }
         }
 
-        public async Task<Result<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>>> InvoiceCycleCurrent_ListByListIDs(List<int> IDs)
+        public async Task<Result<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>>> InvoiceCycleCurrent_ListForCompanyInvoiceCycle(int CompanyID, int InvoiceCycleID)
+        {
+            try
+            {
+                List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow> ListInvoiceCycleCurrent = await _dbContext.InvoiceCycleCurrent.AsNoTracking().Where(x => !x.DeletedFlag && x.CompanyID == CompanyID && x.InvoiceCycleID == InvoiceCycleID).ToListAsync();
+
+                return Result.Success<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>>(ListInvoiceCycleCurrent);
+            }
+            catch (Exception ex)
+            {
+                logger.Error("InvoiceCycleCurrent_ListForCompanyInvoiceCycle: " + ex);
+
+                return Result.Exception<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>>("Internal Exception occured");
+            }
+        }
+
+
+        public async Task<Result<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRowExtended>>> InvoiceCycleCurrent_ListByListIDs(List<int> IDs)
         {
             if (IDs == null || IDs.Count == 0)
             {
                 logger.Error("InvoiceCycleCurrent_ListByListIDs was null or blank ");
-                return Result.Failure<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>>("IDs list is null or empty");
+                return Result.Failure<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRowExtended>>("IDs list is null or empty");
             }
             else
             {
                 try
                 {
-                    List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow> InvoiceCycleCurrents = await _dbContext.InvoiceCycleCurrent.AsNoTracking().Where(x => !x.DeletedFlag && IDs.Contains(x.ID)).ToListAsync();
-                    return Result.Success<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>>(InvoiceCycleCurrents);
+                    List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRowExtended> InvoiceCycleCurrents = await (from InvoiceCycleCurrent in _dbContext.InvoiceCycleCurrent.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && IDs.Contains(x.ID))
+                                                                                                                 join company in _dbContext.Company.AsNoTracking()
+                                                                                                                     on InvoiceCycleCurrent.CompanyID equals company.ID into companyPR
+                                                                                                                 from CPR in companyPR.DefaultIfEmpty()
+                                                                                                                 join InvoiceCycle in _dbContext.InvoiceCycle.AsNoTracking()
+                                                                                                           on InvoiceCycleCurrent.InvoiceCycleID equals InvoiceCycle.ID into InvoiceCyclePR
+                                                                                                                 from ICPR in InvoiceCyclePR.DefaultIfEmpty()
+
+                                                                                                                 select new wbm_common.DataObjects.InvoiceCycleCurrent.dbRowExtended
+                                                                                                                 {
+                                                                                                                     ID = InvoiceCycleCurrent.ID,
+                                                                                                                     CompanyID = InvoiceCycleCurrent.CompanyID,
+                                                                                                                     InvoiceCycleID = InvoiceCycleCurrent.InvoiceCycleID,
+                                                                                                                     CurrentPeriodEnding = InvoiceCycleCurrent.CurrentPeriodEnding,
+                                                                                                                     DeletedFlag = InvoiceCycleCurrent.DeletedFlag,
+                                                                                                                     CreatedDateTime = InvoiceCycleCurrent.CreatedDateTime,
+                                                                                                                     CreatedMethod = InvoiceCycleCurrent.CreatedMethod,
+                                                                                                                     CreatedUserID = InvoiceCycleCurrent.CreatedUserID,
+                                                                                                                     LastAmendedDateTime = InvoiceCycleCurrent.LastAmendedDateTime,
+                                                                                                                     LastAmendedMethod = InvoiceCycleCurrent.LastAmendedMethod,
+                                                                                                                     LastAmendedUserID = InvoiceCycleCurrent.LastAmendedUserID,
+
+                                                                                                                     InvoiceCycle_PublicID = ICPR.PublicID,
+                                                                                                                     Company_ShortName = CPR.ShortName
+                                                                                                                 }).ToListAsync();
+                    return Result.Success<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRowExtended>>(InvoiceCycleCurrents);
                 }
                 catch (Exception ex)
                 {
                     logger.Error("InvoiceCycleCurrent_ListByListIDs: " + ex);
-                    return Result.Exception<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>>("Internal Exception occured");
+                    return Result.Exception<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRowExtended>>("Internal Exception occured");
                 }
             }
         }
 
-        public async Task<Result<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>>> InvoiceCycleCurrent_ListBySql(string sqlString, List<SqlParameter> ListSqlParameter)
+        public async Task<Result<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRowExtended>>> InvoiceCycleCurrent_ListBySql(string sqlString, List<SqlParameter> ListSqlParameter)
         {
             try
             {
-                List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow> InvoiceCycleCurrents = await _dbContext.InvoiceCycleCurrent.FromSqlRaw(sqlString, ListSqlParameter.ToArray()).ToListAsync();
-                return Result.Success<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>>(InvoiceCycleCurrents);
+                List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRowExtended> InvoiceCycleCurrents = await _dbContext.Database.SqlQueryRaw<wbm_common.DataObjects.InvoiceCycleCurrent.dbRowExtended>(sqlString, ListSqlParameter.ToArray()).ToListAsync();
+                return Result.Success<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRowExtended>>(InvoiceCycleCurrents);
             }
             catch (Exception ex)
             {
                 logger.Error("InvoiceCycleCurrent_ListBySql -  " + sqlString + " : ex = " + ex);
-                return Result.Exception<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRow>>("Internal Exception occured");
+                return Result.Exception<List<wbm_common.DataObjects.InvoiceCycleCurrent.dbRowExtended>>("Internal Exception occured");
             }
         }
         #endregion
@@ -329,60 +441,92 @@ namespace WBM_API.WBM_API_DB
                 return Result.Exception<int>("Internal Exception occured");
             }
         }
-        public async Task<Result<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>>> InvoiceCycleHistory_ListByCompanyID(int CompanyID)
+        public async Task<Result<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended>>> InvoiceCycleHistory_ListByCompanyID(int CompanyID)
         {
             try
             {
-                wbm_common.DataObjects.InvoiceCycleHistory.dbRow InvoiceCycleHistory = await _dbContext.InvoiceCycleHistory.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.CompanyID == CompanyID);
+                List<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended> InvoiceCycleHistoryDb = await (from InvoiceCycleHistory in _dbContext.InvoiceCycleHistory.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && x.CompanyID == CompanyID)
+                                                                                                              join company in _dbContext.Company.AsNoTracking()
+                                                                                                                  on InvoiceCycleHistory.CompanyID equals company.ID into companyPR
+                                                                                                              from CPR in companyPR.DefaultIfEmpty()
+                                                                                                              join InvoiceCycle in _dbContext.InvoiceCycle.AsNoTracking()
+                                                                                                    on InvoiceCycleHistory.InvoiceCycleID equals InvoiceCycle.ID into InvoiceCyclePR
+                                                                                                              from ICPR in InvoiceCyclePR.DefaultIfEmpty()
 
-                if (InvoiceCycleHistory == null)
-                    return Result.Success<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>>(new List<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>());
+                                                                                                              select new wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended
+                                                                                                              {
+                                                                                                                  ID = InvoiceCycleHistory.ID,
+                                                                                                                  CompanyID = InvoiceCycleHistory.CompanyID,
+                                                                                                                  InvoiceCycleID = InvoiceCycleHistory.InvoiceCycleID,
+                                                                                                                  PeriodEndingDate = InvoiceCycleHistory.PeriodEndingDate,
+                                                                                                                  Description = InvoiceCycleHistory.Description,
+                                                                                                                  DeletedFlag = InvoiceCycleHistory.DeletedFlag,
+                                                                                                                  CreatedDateTime = InvoiceCycleHistory.CreatedDateTime,
+                                                                                                                  CreatedMethod = InvoiceCycleHistory.CreatedMethod,
+                                                                                                                  CreatedUserID = InvoiceCycleHistory.CreatedUserID,
+                                                                                                                  LastAmendedDateTime = InvoiceCycleHistory.LastAmendedDateTime,
+                                                                                                                  LastAmendedMethod = InvoiceCycleHistory.LastAmendedMethod,
+                                                                                                                  LastAmendedUserID = InvoiceCycleHistory.LastAmendedUserID,
+
+                                                                                                                  InvoiceCycle_PublicID = ICPR.PublicID,
+                                                                                                                  Company_ShortName = CPR.ShortName
+                                                                                                              }).ToListAsync();
+
+                if (InvoiceCycleHistoryDb == null)
+                    return Result.Success<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended>>(new List<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended>());
                 else
-                    return Result.Success<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>>(new List<wbm_common.DataObjects.InvoiceCycleHistory.dbRow> { InvoiceCycleHistory });
+                    return Result.Success<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended>>( InvoiceCycleHistoryDb );
             }
             catch (Exception ex)
             {
                 logger.Error("InvoiceCycleHistory_ListByCompanyID - " + CompanyID.ToString() + ": " + ex);
-                return Result.Exception<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>>("Internal Exception occured");
-            }
-        }
-
-        // read and search are different because of the deleted flag
-        public async Task<Result<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>> InvoiceCycleHistory_SearchByID(int ID)
-        {
-            try
-            {
-                wbm_common.DataObjects.InvoiceCycleHistory.dbRow InvoiceCycleHistory = await _dbContext.InvoiceCycleHistory.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.ID == ID);
-
-                if (InvoiceCycleHistory == null)
-                    return Result.Failure<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>("InvoiceCycleHistory not found : " + ID.ToString());
-                else
-                    return Result.Success<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>(InvoiceCycleHistory);
-
-            }
-            catch (Exception ex)
-            {
-                logger.Error("InvoiceCycleHistory_SearchByPublicID - " + ID.ToString() + ": " + ex);
-                return Result.Exception<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>("Internal Exception occured");
+                return Result.Exception<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended>>("Internal Exception occured");
             }
         }
 
         //because of the way the results return work, it makes more sense to keep the result format for all and just have this be a list instead of a single return
-        public async Task<Result<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>>> InvoiceCycleHistoryList_SearchByID(int ID)
+        public async Task<Result<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended>>> InvoiceCycleHistory_ListByID(int ID)
         {
             try
             {
-                wbm_common.DataObjects.InvoiceCycleHistory.dbRow InvoiceCycleHistory = await _dbContext.InvoiceCycleHistory.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.ID == ID);
+                List<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended> InvoiceCycleHistoryDb = await (from InvoiceCycleHistory in _dbContext.InvoiceCycleHistory.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && x.ID == ID)
+                                                                                                              join company in _dbContext.Company.AsNoTracking()
+                                                                                                                  on InvoiceCycleHistory.CompanyID equals company.ID into companyPR
+                                                                                                              from CPR in companyPR.DefaultIfEmpty()
+                                                                                                              join InvoiceCycle in _dbContext.InvoiceCycle.AsNoTracking()
+                                                                                                    on InvoiceCycleHistory.InvoiceCycleID equals InvoiceCycle.ID into InvoiceCyclePR
+                                                                                                              from ICPR in InvoiceCyclePR.DefaultIfEmpty()
 
-                if (InvoiceCycleHistory == null)
-                    return Result.Success<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>>(new List<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>());
+                                                                                                              select new wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended
+                                                                                                              {
+                                                                                                                  ID = InvoiceCycleHistory.ID,
+                                                                                                                  CompanyID = InvoiceCycleHistory.CompanyID,
+                                                                                                                  InvoiceCycleID = InvoiceCycleHistory.InvoiceCycleID,
+                                                                                                                  PeriodEndingDate = InvoiceCycleHistory.PeriodEndingDate,
+                                                                                                                  Description = InvoiceCycleHistory.Description,
+                                                                                                                  DeletedFlag = InvoiceCycleHistory.DeletedFlag,
+                                                                                                                  CreatedDateTime = InvoiceCycleHistory.CreatedDateTime,
+                                                                                                                  CreatedMethod = InvoiceCycleHistory.CreatedMethod,
+                                                                                                                  CreatedUserID = InvoiceCycleHistory.CreatedUserID,
+                                                                                                                  LastAmendedDateTime = InvoiceCycleHistory.LastAmendedDateTime,
+                                                                                                                  LastAmendedMethod = InvoiceCycleHistory.LastAmendedMethod,
+                                                                                                                  LastAmendedUserID = InvoiceCycleHistory.LastAmendedUserID,
+
+                                                                                                                  InvoiceCycle_PublicID = ICPR.PublicID,
+                                                                                                                  Company_ShortName = CPR.ShortName
+                                                                                                              }).ToListAsync();
+
+                if (InvoiceCycleHistoryDb == null)
+                    return Result.Success<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended>>(new List<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended>());
                 else
-                    return Result.Success<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>>(new List<wbm_common.DataObjects.InvoiceCycleHistory.dbRow> { InvoiceCycleHistory });
+                    return Result.Success<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended>>(InvoiceCycleHistoryDb);
             }
             catch (Exception ex)
             {
-                logger.Error("InvoiceCycleHistory_SearchByID - " + ID.ToString() + ": " + ex);
-                return Result.Exception<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>>("Internal Exception occured");
+                logger.Error("InvoiceCycleHistory_ListByID - " + ID.ToString() + ": " + ex);
+                return Result.Exception<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended>>("Internal Exception occured");
             }
         }
 
@@ -391,12 +535,13 @@ namespace WBM_API.WBM_API_DB
         {
             try
             {
-                wbm_common.DataObjects.InvoiceCycleHistory.dbRow InvoiceCycleHistory = await _dbContext.InvoiceCycleHistory.AsNoTracking().FirstOrDefaultAsync(x => x.ID == ID);
+                wbm_common.DataObjects.InvoiceCycleHistory.dbRow InvoiceCycleHistoryDb = await _dbContext.InvoiceCycleHistory.AsNoTracking()
+                                                                        .Where(x => x.ID == ID).FirstOrDefaultAsync();
 
-                if (InvoiceCycleHistory == null)
+                if (InvoiceCycleHistoryDb == null)
                     return Result.Failure<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>("InvoiceCycleHistory not found : " + ID.ToString());
                 else
-                    return Result.Success<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>(InvoiceCycleHistory);
+                    return Result.Success<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>(InvoiceCycleHistoryDb);
             }
             catch (Exception ex)
             {
@@ -405,55 +550,107 @@ namespace WBM_API.WBM_API_DB
             }
         }
 
-        public async Task<Result<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>>> InvoiceCycleHistory_List()
+        public async Task<Result<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended>>> InvoiceCycleHistory_List()
         {
             try
             {
-                List<wbm_common.DataObjects.InvoiceCycleHistory.dbRow> InvoiceCycleHistorys = await _dbContext.InvoiceCycleHistory.AsNoTracking().Where(x => !x.DeletedFlag).ToListAsync();
+                List<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended> InvoiceCycleHistorys = await (from InvoiceCycleHistory in _dbContext.InvoiceCycleHistory.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag)
+                                                                                                             join company in _dbContext.Company.AsNoTracking()
+                                                                                                                 on InvoiceCycleHistory.CompanyID equals company.ID into companyPR
+                                                                                                             from CPR in companyPR.DefaultIfEmpty()
+                                                                                                             join InvoiceCycle in _dbContext.InvoiceCycle.AsNoTracking()
+                                                                                                   on InvoiceCycleHistory.InvoiceCycleID equals InvoiceCycle.ID into InvoiceCyclePR
+                                                                                                             from ICPR in InvoiceCyclePR.DefaultIfEmpty()
 
-                return Result.Success<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>>(InvoiceCycleHistorys);
+                                                                                                             select new wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended
+                                                                                                             {
+                                                                                                                 ID = InvoiceCycleHistory.ID,
+                                                                                                                 CompanyID = InvoiceCycleHistory.CompanyID,
+                                                                                                                 InvoiceCycleID = InvoiceCycleHistory.InvoiceCycleID,
+                                                                                                                 PeriodEndingDate = InvoiceCycleHistory.PeriodEndingDate,
+                                                                                                                 Description = InvoiceCycleHistory.Description,
+                                                                                                                 DeletedFlag = InvoiceCycleHistory.DeletedFlag,
+                                                                                                                 CreatedDateTime = InvoiceCycleHistory.CreatedDateTime,
+                                                                                                                 CreatedMethod = InvoiceCycleHistory.CreatedMethod,
+                                                                                                                 CreatedUserID = InvoiceCycleHistory.CreatedUserID,
+                                                                                                                 LastAmendedDateTime = InvoiceCycleHistory.LastAmendedDateTime,
+                                                                                                                 LastAmendedMethod = InvoiceCycleHistory.LastAmendedMethod,
+                                                                                                                 LastAmendedUserID = InvoiceCycleHistory.LastAmendedUserID,
+
+                                                                                                                 InvoiceCycle_PublicID = ICPR.PublicID,
+                                                                                                                 Company_ShortName = CPR.ShortName
+                                                                                                             }).ToListAsync();
+
+                return Result.Success<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended>>(InvoiceCycleHistorys);
             }
             catch (Exception ex)
             {
                 logger.Error("InvoiceCycleHistory_List: " + ex);
 
-                return Result.Exception<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>>("Internal Exception occured");
+                return Result.Exception<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended>>("Internal Exception occured");
             }
         }
 
-        public async Task<Result<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>>> InvoiceCycleHistory_ListByListIDs(List<int> IDs)
+        public async Task<Result<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended>>> InvoiceCycleHistory_ListByListIDs(List<int> IDs)
         {
             if (IDs == null || IDs.Count == 0)
             {
                 logger.Error("InvoiceCycleHistory_ListByListIDs was null or blank ");
-                return Result.Failure<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>>("IDs list is null or empty");
+                return Result.Failure<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended>>("IDs list is null or empty");
             }
             else
             {
                 try
                 {
-                    List<wbm_common.DataObjects.InvoiceCycleHistory.dbRow> InvoiceCycleHistorys = await _dbContext.InvoiceCycleHistory.AsNoTracking().Where(x => !x.DeletedFlag && IDs.Contains(x.ID)).ToListAsync();
-                    return Result.Success<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>>(InvoiceCycleHistorys);
+                    List<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended> InvoiceCycleHistorys = await (from InvoiceCycleHistory in _dbContext.InvoiceCycleHistory.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && IDs.Contains(x.ID))
+                                                                                                                 join company in _dbContext.Company.AsNoTracking()
+                                                                                                                     on InvoiceCycleHistory.CompanyID equals company.ID into companyPR
+                                                                                                                 from CPR in companyPR.DefaultIfEmpty()
+                                                                                                                 join InvoiceCycle in _dbContext.InvoiceCycle.AsNoTracking()
+                                                                                                       on InvoiceCycleHistory.InvoiceCycleID equals InvoiceCycle.ID into InvoiceCyclePR
+                                                                                                                 from ICPR in InvoiceCyclePR.DefaultIfEmpty()
+
+                                                                                                                 select new wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended
+                                                                                                                 {
+                                                                                                                     ID = InvoiceCycleHistory.ID,
+                                                                                                                     CompanyID = InvoiceCycleHistory.CompanyID,
+                                                                                                                     InvoiceCycleID = InvoiceCycleHistory.InvoiceCycleID,
+                                                                                                                     PeriodEndingDate = InvoiceCycleHistory.PeriodEndingDate,
+                                                                                                                     Description = InvoiceCycleHistory.Description,
+                                                                                                                     DeletedFlag = InvoiceCycleHistory.DeletedFlag,
+                                                                                                                     CreatedDateTime = InvoiceCycleHistory.CreatedDateTime,
+                                                                                                                     CreatedMethod = InvoiceCycleHistory.CreatedMethod,
+                                                                                                                     CreatedUserID = InvoiceCycleHistory.CreatedUserID,
+                                                                                                                     LastAmendedDateTime = InvoiceCycleHistory.LastAmendedDateTime,
+                                                                                                                     LastAmendedMethod = InvoiceCycleHistory.LastAmendedMethod,
+                                                                                                                     LastAmendedUserID = InvoiceCycleHistory.LastAmendedUserID,
+
+                                                                                                                     InvoiceCycle_PublicID = ICPR.PublicID,
+                                                                                                                     Company_ShortName = CPR.ShortName
+                                                                                                                 }).ToListAsync();
+                    return Result.Success<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended>>(InvoiceCycleHistorys);
                 }
                 catch (Exception ex)
                 {
                     logger.Error("InvoiceCycleHistory_ListByListIDs: " + ex);
-                    return Result.Exception<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>>("Internal Exception occured");
+                    return Result.Exception<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended>>("Internal Exception occured");
                 }
             }
         }
 
-        public async Task<Result<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>>> InvoiceCycleHistory_ListBySql(string sqlString, List<SqlParameter> ListSqlParameter)
+        public async Task<Result<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended>>> InvoiceCycleHistory_ListBySql(string sqlString, List<SqlParameter> ListSqlParameter)
         {
             try
             {
-                List<wbm_common.DataObjects.InvoiceCycleHistory.dbRow> InvoiceCycleHistorys = await _dbContext.InvoiceCycleHistory.FromSqlRaw(sqlString, ListSqlParameter.ToArray()).ToListAsync();
-                return Result.Success<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>>(InvoiceCycleHistorys);
+                List<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended> InvoiceCycleHistorys = await _dbContext.Database.SqlQueryRaw<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended>(sqlString, ListSqlParameter.ToArray()).ToListAsync();
+                return Result.Success<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended>>(InvoiceCycleHistorys);
             }
             catch (Exception ex)
             {
                 logger.Error("InvoiceCycleHistory_ListBySql -  " + sqlString + " : ex = " + ex);
-                return Result.Exception<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>>("Internal Exception occured");
+                return Result.Exception<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended>>("Internal Exception occured");
             }
         }
 

@@ -1,6 +1,7 @@
 ﻿using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
+using wbm_common.DataObjects;
 
 namespace WBM_API.WBM_API_DB
 {
@@ -44,12 +45,13 @@ namespace WBM_API.WBM_API_DB
         {
             try
             {
-                wbm_common.DataObjects.Site.dbRow Site = await _dbContext.Site.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.ID == ID);
+                wbm_common.DataObjects.Site.dbRow SiteDb = await _dbContext.Site.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && x.ID == ID).FirstOrDefaultAsync();
 
-                if (Site == null)
+                if (SiteDb == null)
                     return Result.Failure<wbm_common.DataObjects.Site.dbRow>("Site not found : " + ID.ToString());
                 else
-                    return Result.Success<wbm_common.DataObjects.Site.dbRow>(Site);
+                    return Result.Success<wbm_common.DataObjects.Site.dbRow>(SiteDb);
 
             }
             catch (Exception ex)
@@ -59,22 +61,71 @@ namespace WBM_API.WBM_API_DB
             }
         }
 
-        //because of the way the results return work, it makes more sense to keep the result format for all and just have this be a list instead of a single return
-        public async Task<Result<List<wbm_common.DataObjects.Site.dbRow>>> SiteList_SearchByID(int ID)
+        // read and search are different because of the deleted flag
+        public async Task<Result<wbm_common.DataObjects.Site.dbRow>> Site_SearchByPublicID(string PublicID)
         {
             try
             {
-                wbm_common.DataObjects.Site.dbRow Site = await _dbContext.Site.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.ID == ID);
+                wbm_common.DataObjects.Site.dbRow SiteDb = await _dbContext.Site.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && x.PublicID == PublicID).FirstOrDefaultAsync();
 
-                if (Site == null)
-                    return Result.Success<List<wbm_common.DataObjects.Site.dbRow>>(new List<wbm_common.DataObjects.Site.dbRow>());
+                if (SiteDb == null)
+                    return Result.Failure<wbm_common.DataObjects.Site.dbRow>("Site not found : " + PublicID);
                 else
-                    return Result.Success<List<wbm_common.DataObjects.Site.dbRow>>(new List<wbm_common.DataObjects.Site.dbRow> { Site });
+                    return Result.Success<wbm_common.DataObjects.Site.dbRow>(SiteDb);
+
             }
             catch (Exception ex)
             {
-                logger.Error("Site_SearchByID - " + ID.ToString() + ": " + ex);
-                return Result.Exception<List<wbm_common.DataObjects.Site.dbRow>>("Internal Exception occured");
+                logger.Error("Site_SearchByPublicID - " + PublicID + ": " + ex);
+                return Result.Exception<wbm_common.DataObjects.Site.dbRow>("Internal Exception occured");
+            }
+        }
+
+        //because of the way the results return work, it makes more sense to keep the result format for all and just have this be a list instead of a single return
+        public async Task<Result<List<wbm_common.DataObjects.Site.dbRowExtended>>> Site_ListByID(int ID)
+        {
+            try
+            {
+                List<wbm_common.DataObjects.Site.dbRowExtended> SiteDb = await (from Site in _dbContext.Site.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && x.ID == ID)
+                                                                                join SiteSystem in _dbContext.SiteSystem.AsNoTracking()
+                                                                                    on Site.SiteSystemID equals SiteSystem.ID into SiteSystemPR
+                                                                                from SSPR in SiteSystemPR.DefaultIfEmpty()
+                                                                                join company in _dbContext.Company.AsNoTracking()
+                                                                    on Site.CompanyID equals company.ID into companyPR
+                                                                                from CPR in companyPR.DefaultIfEmpty()
+
+                                                                                select new wbm_common.DataObjects.Site.dbRowExtended
+                                                                                {
+                                                                                    ID = Site.ID,
+                                                                                    CompanyID = Site.CompanyID,
+                                                                                    PublicID = Site.PublicID,
+                                                                                    SiteSystemID = Site.SiteSystemID,
+                                                                                    Active = Site.Active,
+                                                                                    Description = Site.Description,
+                                                                                    SortOrder = Site.SortOrder,
+                                                                                    DeletedFlag = Site.DeletedFlag,
+                                                                                    CreatedDateTime = Site.CreatedDateTime,
+                                                                                    CreatedMethod = Site.CreatedMethod,
+                                                                                    CreatedUserID = Site.CreatedUserID,
+                                                                                    LastAmendedDateTime = Site.LastAmendedDateTime,
+                                                                                    LastAmendedMethod = Site.LastAmendedMethod,
+                                                                                    LastAmendedUserID = Site.LastAmendedUserID,
+
+                                                                                    SiteSystem_PublicID = SSPR.PublicID,
+                                                                                    Company_ShortName = CPR.ShortName
+                                                                                }).ToListAsync();
+
+                if (SiteDb == null)
+                    return Result.Success<List<wbm_common.DataObjects.Site.dbRowExtended>>(new List<wbm_common.DataObjects.Site.dbRowExtended>());
+                else
+                    return Result.Success<List<wbm_common.DataObjects.Site.dbRowExtended>>(SiteDb);
+            }
+            catch (Exception ex)
+            {
+                logger.Error("Site_ListByID - " + ID.ToString() + ": " + ex);
+                return Result.Exception<List<wbm_common.DataObjects.Site.dbRowExtended>>("Internal Exception occured");
             }
         }
 
@@ -83,12 +134,13 @@ namespace WBM_API.WBM_API_DB
         {
             try
             {
-                wbm_common.DataObjects.Site.dbRow Site = await _dbContext.Site.AsNoTracking().FirstOrDefaultAsync(x => x.ID == ID);
+                wbm_common.DataObjects.Site.dbRow SiteDb = await _dbContext.Site.AsNoTracking()
+                                                                        .Where(x => x.ID == ID).FirstOrDefaultAsync();
 
-                if (Site == null)
+                if (SiteDb == null)
                     return Result.Failure<wbm_common.DataObjects.Site.dbRow>("Site not found : " + ID.ToString());
                 else
-                    return Result.Success<wbm_common.DataObjects.Site.dbRow>(Site);
+                    return Result.Success<wbm_common.DataObjects.Site.dbRow>(SiteDb);
             }
             catch (Exception ex)
             {
@@ -97,55 +149,111 @@ namespace WBM_API.WBM_API_DB
             }
         }
 
-        public async Task<Result<List<wbm_common.DataObjects.Site.dbRow>>> Site_List()
+        public async Task<Result<List<wbm_common.DataObjects.Site.dbRowExtended>>> Site_List()
         {
             try
             {
-                List<wbm_common.DataObjects.Site.dbRow> Sites = await _dbContext.Site.AsNoTracking().Where(x => !x.DeletedFlag).ToListAsync();
+                List<wbm_common.DataObjects.Site.dbRowExtended> Sites = await (from Site in _dbContext.Site.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag)
+                                                                               join SiteSystem in _dbContext.SiteSystem.AsNoTracking()
+                                                                                   on Site.SiteSystemID equals SiteSystem.ID into SiteSystemPR
+                                                                               from SSPR in SiteSystemPR.DefaultIfEmpty()
+                                                                               join company in _dbContext.Company.AsNoTracking()
+                                                                   on Site.CompanyID equals company.ID into companyPR
+                                                                               from CPR in companyPR.DefaultIfEmpty()
 
-                return Result.Success<List<wbm_common.DataObjects.Site.dbRow>>(Sites);
+                                                                               select new wbm_common.DataObjects.Site.dbRowExtended
+                                                                               {
+                                                                                   ID = Site.ID,
+                                                                                   CompanyID = Site.CompanyID,
+                                                                                   PublicID = Site.PublicID,
+                                                                                   SiteSystemID = Site.SiteSystemID,
+                                                                                   Active = Site.Active,
+                                                                                   Description = Site.Description,
+                                                                                   SortOrder = Site.SortOrder,
+                                                                                   DeletedFlag = Site.DeletedFlag,
+                                                                                   CreatedDateTime = Site.CreatedDateTime,
+                                                                                   CreatedMethod = Site.CreatedMethod,
+                                                                                   CreatedUserID = Site.CreatedUserID,
+                                                                                   LastAmendedDateTime = Site.LastAmendedDateTime,
+                                                                                   LastAmendedMethod = Site.LastAmendedMethod,
+                                                                                   LastAmendedUserID = Site.LastAmendedUserID,
+
+                                                                                   SiteSystem_PublicID = SSPR.PublicID,
+                                                                                   Company_ShortName = CPR.ShortName
+                                                                               }).ToListAsync();
+
+                return Result.Success<List<wbm_common.DataObjects.Site.dbRowExtended>>(Sites);
             }
             catch (Exception ex)
             {
                 logger.Error("Site_List: " + ex);
 
-                return Result.Exception<List<wbm_common.DataObjects.Site.dbRow>>("Internal Exception occured");
+                return Result.Exception<List<wbm_common.DataObjects.Site.dbRowExtended>>("Internal Exception occured");
             }
         }
 
-        public async Task<Result<List<wbm_common.DataObjects.Site.dbRow>>> Site_ListByListIDs(List<int> IDs)
+        public async Task<Result<List<wbm_common.DataObjects.Site.dbRowExtended>>> Site_ListByListIDs(List<int> IDs)
         {
             if (IDs == null || IDs.Count == 0)
             {
                 logger.Error("Site_ListByListIDs was null or blank ");
-                return Result.Failure<List<wbm_common.DataObjects.Site.dbRow>>("IDs list is null or empty");
+                return Result.Failure<List<wbm_common.DataObjects.Site.dbRowExtended>>("IDs list is null or empty");
             }
             else
             {
                 try
                 {
-                    List<wbm_common.DataObjects.Site.dbRow> Sites = await _dbContext.Site.AsNoTracking().Where(x => !x.DeletedFlag && IDs.Contains(x.ID)).ToListAsync();
-                    return Result.Success<List<wbm_common.DataObjects.Site.dbRow>>(Sites);
+                    List<wbm_common.DataObjects.Site.dbRowExtended> Sites = await (from Site in _dbContext.Site.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && IDs.Contains(x.ID))
+                                                                                   join SiteSystem in _dbContext.SiteSystem.AsNoTracking()
+                                                                                       on Site.SiteSystemID equals SiteSystem.ID into SiteSystemPR
+                                                                                   from SSPR in SiteSystemPR.DefaultIfEmpty()
+                                                                                   join company in _dbContext.Company.AsNoTracking()
+                                                                       on Site.CompanyID equals company.ID into companyPR
+                                                                                   from CPR in companyPR.DefaultIfEmpty()
+
+                                                                                   select new wbm_common.DataObjects.Site.dbRowExtended
+                                                                                   {
+                                                                                       ID = Site.ID,
+                                                                                       CompanyID = Site.CompanyID,
+                                                                                       PublicID = Site.PublicID,
+                                                                                       SiteSystemID = Site.SiteSystemID,
+                                                                                       Active = Site.Active,
+                                                                                       Description = Site.Description,
+                                                                                       SortOrder = Site.SortOrder,
+                                                                                       DeletedFlag = Site.DeletedFlag,
+                                                                                       CreatedDateTime = Site.CreatedDateTime,
+                                                                                       CreatedMethod = Site.CreatedMethod,
+                                                                                       CreatedUserID = Site.CreatedUserID,
+                                                                                       LastAmendedDateTime = Site.LastAmendedDateTime,
+                                                                                       LastAmendedMethod = Site.LastAmendedMethod,
+                                                                                       LastAmendedUserID = Site.LastAmendedUserID,
+
+                                                                                       SiteSystem_PublicID = SSPR.PublicID,
+                                                                                       Company_ShortName = CPR.ShortName
+                                                                                   }).ToListAsync();
+                    return Result.Success<List<wbm_common.DataObjects.Site.dbRowExtended>>(Sites);
                 }
                 catch (Exception ex)
                 {
                     logger.Error("Site_ListByListIDs: " + ex);
-                    return Result.Exception<List<wbm_common.DataObjects.Site.dbRow>>("Internal Exception occured");
+                    return Result.Exception<List<wbm_common.DataObjects.Site.dbRowExtended>>("Internal Exception occured");
                 }
             }
         }
 
-        public async Task<Result<List<wbm_common.DataObjects.Site.dbRow>>> Site_ListBySql(string sqlString, List<SqlParameter> ListSqlParameter)
+        public async Task<Result<List<wbm_common.DataObjects.Site.dbRowExtended>>> Site_ListBySql(string sqlString, List<SqlParameter> ListSqlParameter)
         {
             try
             {
-                List<wbm_common.DataObjects.Site.dbRow> Sites = await _dbContext.Site.FromSqlRaw(sqlString, ListSqlParameter.ToArray()).ToListAsync();
-                return Result.Success<List<wbm_common.DataObjects.Site.dbRow>>(Sites);
+                List<wbm_common.DataObjects.Site.dbRowExtended> Sites = await _dbContext.Database.SqlQueryRaw<wbm_common.DataObjects.Site.dbRowExtended>(sqlString, ListSqlParameter.ToArray()).ToListAsync();
+                return Result.Success<List<wbm_common.DataObjects.Site.dbRowExtended>>(Sites);
             }
             catch (Exception ex)
             {
                 logger.Error("Site_ListBySql -  " + sqlString + " : ex = " + ex);
-                return Result.Exception<List<wbm_common.DataObjects.Site.dbRow>>("Internal Exception occured");
+                return Result.Exception<List<wbm_common.DataObjects.Site.dbRowExtended>>("Internal Exception occured");
             }
         }
     }

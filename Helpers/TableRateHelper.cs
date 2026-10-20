@@ -2,18 +2,19 @@
 using NLog;
 using NLog.Web;
 using System.Data.SqlTypes;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
+using wbm_common.DataObjects;
 
 namespace WBM_API.Helpers
 {
     public class TableRateHelper
     {
         private static Logger logger = LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
-        public static async Task<Result<List<wbm_common.DataObjects.TableRate.dbRow>>> ExecuteSearch(wbm_common.DataObjects.TableRate.Search _TableRateSearchData, WBMDatabase _WBMDB, IHubCallerClients Clients = null, Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> inCallBackStatusFunction = null, wbm_common.DataObjects.LongRunProcessHeader.dbRow longRunProcessHeader = null)
+        public static async Task<Result<List<wbm_common.DataObjects.TableRate.dbRowExtended>>> ExecuteSearch(wbm_common.DataObjects.TableRate.Search _TableRateSearchData, WBMDatabase _WBMDB, IHubCallerClients Clients = null, Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> inCallBackStatusFunction = null, wbm_common.DataObjects.LongRunProcessHeader.dbRow longRunProcessHeader = null)
         {
-            Result<List<wbm_common.DataObjects.TableRate.dbRow>> rc;
-            List<wbm_common.DataObjects.TableRate.dbRow> TableRates;
+            Result<List<wbm_common.DataObjects.TableRate.dbRowExtended>> rc;
+            List<wbm_common.DataObjects.TableRate.dbRowExtended> TableRates;
             switch (_TableRateSearchData.SearchMode)
             {
                 case wbm_common.DataObjects.TableRate.Search.SearchModeType.Undefined:
@@ -24,7 +25,7 @@ namespace WBM_API.Helpers
                     }
                 case wbm_common.DataObjects.TableRate.Search.SearchModeType.SingleID:
                     {
-                        rc = await _WBMDB.TableRateList_SearchByID(_TableRateSearchData.ID);
+                        rc = await _WBMDB.TableRate_ListByID(_TableRateSearchData.ID);
                         break;
                     }
                 case wbm_common.DataObjects.TableRate.Search.SearchModeType.AllRecords:
@@ -35,7 +36,7 @@ namespace WBM_API.Helpers
                 default:
                     {
                         logger.Error("TableRateHelper.ExecuteSearch: TableRate Search Mode Type Error");
-                        rc = Result.Exception<List<wbm_common.DataObjects.TableRate.dbRow>>("Internal Exception occured");
+                        rc = Result.Exception<List<wbm_common.DataObjects.TableRate.dbRowExtended>>("Internal Exception occured");
                         break;
                     }
             }
@@ -90,6 +91,13 @@ namespace WBM_API.Helpers
 
             public Boolean Save()
             {
+                List<string> fieldErrors = DbRowValidator.requiredFieldErrors(TableRate.MyRequiredList, saveRow, _WBMDB);
+                if (fieldErrors.Count() > 0)
+                {
+                    ErrorMessage = string.Join(", ", fieldErrors);
+                    ReturnState = 400;
+                    return false;
+                }
                 if (CheckExist())
                 {
                     if (Exists)
@@ -178,37 +186,6 @@ namespace WBM_API.Helpers
                     IsNew = true;
                 #endregion
 
-                #region Check that PublicID is unique
-                if (Exists && saveRow.ID == existRow.ID)
-                {
-                    // Don't need to check as we are the same
-                }
-                else
-                {
-                    Result<wbm_common.DataObjects.TableRate.dbRow> rcexist = _WBMDB.TableRate_SearchByID(saveRow.ID).GetAwaiter().GetResult();
-
-                    if (rcexist.IsException)
-                    {
-                        SavedSuccessfully = false;
-                        ReturnState = 500;
-                    }
-                    else if (rcexist.IsFailure)
-                    {
-                        // Not found, so ok to continue
-                    }
-                    else
-                    {
-                        // We have at least one row... :(
-                        ErrorMessage = "ID already in use, must be unique - " + saveRow.ID;
-                        logger.Error("TableRateSave ID " + saveRow.ID + " already exists");
-                        ReturnState = 400;
-                        SavedSuccessfully = false;
-                        return false;
-                    }
-                }
-
-                #endregion
-
                 return true;
             }
 
@@ -281,12 +258,10 @@ namespace WBM_API.Helpers
                     {
                         changeHeaderRow.ID = chResult.Value;
 
-                        int ChangeHeaderTableID = (int)wbm_common.DataObjects.ChangeTracking.ChangeHeaderTableID.TableRate;
-
                         foreach (wbm_common.DataObjects.ChangeDetail.dbRow cdRow in ct.ListChangeDetail)
                         {
                             cdRow.ChangeHeaderID = changeHeaderRow.ID;
-                            cdRow.ChangeHeaderTableID = ChangeHeaderTableID;
+                            cdRow.ChangeHeaderTableID = changeHeaderRow.ChangeHeaderTableID;
                             cdRow.RecordID = changeHeaderRow.RecordID;
 
                             Result<int> cdResult = _WBMDB.ChangeDetail_Insert((wbm_common.DataObjects.ChangeDetail.dbRow)cdRow).GetAwaiter().GetResult();

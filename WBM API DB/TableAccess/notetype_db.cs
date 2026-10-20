@@ -1,6 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 
 namespace WBM_API.WBM_API_DB
 {
@@ -40,6 +40,26 @@ namespace WBM_API.WBM_API_DB
         }
 
         // read and search are different because of the deleted flag
+        public async Task<Result<wbm_common.DataObjects.NoteType.dbRow>> NoteType_SearchByPublicID(string PublicID)
+        {
+            try
+            {
+                wbm_common.DataObjects.NoteType.dbRow NoteType = await _dbContext.NoteType.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.PublicID == PublicID);
+
+                if (NoteType == null)
+                    return Result.Failure<wbm_common.DataObjects.NoteType.dbRow>("NoteType not found : " + PublicID.ToString());
+                else
+                    return Result.Success<wbm_common.DataObjects.NoteType.dbRow>(NoteType);
+
+            }
+            catch (Exception ex)
+            {
+                logger.Error("NoteType_SearchByPublicID - " + PublicID.ToString() + ": " + ex);
+                return Result.Exception<wbm_common.DataObjects.NoteType.dbRow>("Internal Exception occured");
+            }
+        }
+
+        // read and search are different because of the deleted flag
         public async Task<Result<wbm_common.DataObjects.NoteType.dbRow>> NoteType_SearchByID(int ID)
         {
             try
@@ -54,13 +74,13 @@ namespace WBM_API.WBM_API_DB
             }
             catch (Exception ex)
             {
-                logger.Error("NoteType_SearchByPublicID - " + ID.ToString() + ": " + ex);
+                logger.Error("NoteType_SearchByID - " + ID.ToString() + ": " + ex);
                 return Result.Exception<wbm_common.DataObjects.NoteType.dbRow>("Internal Exception occured");
             }
         }
 
         //because of the way the results return work, it makes more sense to keep the result format for all and just have this be a list instead of a single return
-        public async Task<Result<List<wbm_common.DataObjects.NoteType.dbRow>>> NoteTypeList_SearchByID(int ID)
+        public async Task<Result<List<wbm_common.DataObjects.NoteType.dbRow>>> NoteType_ListByID(int ID)
         {
             try
             {
@@ -73,7 +93,7 @@ namespace WBM_API.WBM_API_DB
             }
             catch (Exception ex)
             {
-                logger.Error("NoteType_SearchByID - " + ID.ToString() + ": " + ex);
+                logger.Error("NoteType_ListByID - " + ID.ToString() + ": " + ex);
                 return Result.Exception<List<wbm_common.DataObjects.NoteType.dbRow>>("Internal Exception occured");
             }
         }

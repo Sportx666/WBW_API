@@ -3,7 +3,7 @@ using NLog;
 using NLog.Web;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
 using wbm_common.DataObjects;
 
@@ -18,10 +18,10 @@ namespace WBM_API.Helpers.Excel
         private readonly WBMDatabase _WBMDB;
 
         public List<wbm_common.DataObjects.TransactionExceptionType.dbRow> transactionexceptiontype = null;
-        public List<wbm_common.DataObjects.TransactionHeader.dbRow> headers = null;
-        public List<wbm_common.DataObjects.TransactionDetail.dbRow> details = null;
+        public List<wbm_common.DataObjects.TransactionHeader.dbRowExtended> headers = null;
+        public List<wbm_common.DataObjects.TransactionDetail.dbRowExtended> details = null;
         public List<wbm_common.DataObjects.Security_User.dbRow> users = null;
-        public List<wbm_common.DataObjects.TransactionException.dbRow> TransactionExceptions = null;
+        public List<wbm_common.DataObjects.TransactionException.dbRowExtended> TransactionExceptions = null;
         public Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> CallBackStatusFunction { get; set; }
         private IHubCallerClients Clients;
         public wbm_common.DataObjects.LongRunProcessHeader.dbRow lrph { get; set; }
@@ -74,7 +74,7 @@ namespace WBM_API.Helpers.Excel
         private async Task<bool> GetData()
         {
 
-            Result<List<wbm_common.DataObjects.TransactionException.dbRow>> rc = await TransactionExceptionHelper.ExecuteSearch(TransactionExceptionSearchData, _WBMDB);
+            Result<List<wbm_common.DataObjects.TransactionException.dbRowExtended>> rc = await TransactionExceptionHelper.ExecuteSearch(TransactionExceptionSearchData, _WBMDB);
 
             if (rc.IsFailure)
             {
@@ -104,7 +104,7 @@ namespace WBM_API.Helpers.Excel
 
             if (ListHeaderIDs.Count > 0)
             {
-                Result<List<wbm_common.DataObjects.TransactionHeader.dbRow>> headersResults = _WBMDB.TransactionHeader_ListByListIDs(ListHeaderIDs).GetAwaiter().GetResult();
+                Result<List<wbm_common.DataObjects.TransactionHeader.dbRowExtended>> headersResults = _WBMDB.TransactionHeader_ListByListIDs(ListHeaderIDs).GetAwaiter().GetResult();
                 if (headersResults.IsFailure || headersResults.IsException)
                 {
                     ErrorMessage = ErrorCodes.GeneralDB.ToString();
@@ -115,7 +115,7 @@ namespace WBM_API.Helpers.Excel
 
             if (ListDetailIDs.Count > 0)
             {
-                Result<List<wbm_common.DataObjects.TransactionDetail.dbRow>> detailsResults = _WBMDB.TransactionDetail_ListByListIDs(ListDetailIDs).GetAwaiter().GetResult();
+                Result<List<wbm_common.DataObjects.TransactionDetail.dbRowExtended>> detailsResults = _WBMDB.TransactionDetail_ListByListIDs(ListDetailIDs).GetAwaiter().GetResult();
                 if (detailsResults.IsFailure || detailsResults.IsException)
                 {
                     ErrorMessage = ErrorCodes.GeneralDB.ToString();

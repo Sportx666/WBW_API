@@ -1,6 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 
 namespace WBM_API.WBM_API_DB
 {
@@ -38,6 +38,60 @@ namespace WBM_API.WBM_API_DB
                 return Result.Exception<int>("Internal Exception occured");
             }
         }
+
+        public async Task<Result<Boolean>> Owner_UpdateInvoiced(int OwnerID, DateTime InvoiceDate)
+        {
+            try
+            {
+                string SqlCmd = "UPDATE Owner SET LastInvoiceDate = @InvoiceDate WHERE ID = @OwnerID";
+
+                SqlParameter oID = new SqlParameter("@OwnerID", OwnerID);
+                SqlParameter iDate = new SqlParameter("@InvoiceDate", InvoiceDate);
+
+                _dbContext.Database.ExecuteSqlRaw(SqlCmd, oID, iDate);
+
+                return Result.Success<Boolean>(true);
+            }
+            catch (Exception ex)
+            {
+                logger.Error("Owner_UpdateInvoiced - " + OwnerID.ToString() + ", " + InvoiceDate.ToString() + ": " + ex);
+                return Result.Exception<Boolean>("Internal Exception occured");
+            }
+        }
+
+        public async Task<Result<Boolean>> Owner_RollBackInvoiced(int OwnerID, DateTime InvoiceDate)
+        {
+            try
+            {
+                wbm_common.DataObjects.Owner.dbRow Owner = await _dbContext.Owner.FirstOrDefaultAsync(x => !x.DeletedFlag && x.ID == OwnerID);
+
+                if (Owner != null)
+                {
+                    if (Owner.LastInvoiceDate == InvoiceDate)
+                    {
+                        Owner.LastInvoiceDate = Owner.RollBackInvoiceDate;
+                        await _dbContext.SaveChangesAsync();
+                    }
+                    else
+                    {
+                        logger.Error("Owner_RollBackInvoiced - " + OwnerID.ToString() + ", " + InvoiceDate.ToString() + ": Last Invoice date does not match - " + Owner.LastInvoiceDate.ToString());
+                        return Result.Failure<Boolean>("last Invoice date does not match: " + OwnerID);
+                    }
+
+                }
+                else
+                    return Result.Failure<Boolean>("Owner not found : " + OwnerID);
+
+                return Result.Success<Boolean>(true);
+            }
+            catch (Exception ex)
+            {
+                logger.Error("Owner_UpdateInvoiced - " + OwnerID.ToString() + ", " + InvoiceDate.ToString() + ": " + ex);
+                return Result.Exception<Boolean>("Internal Exception occured");
+            }
+        }
+
+
         public async Task<Result<List<wbm_common.DataObjects.Owner.dbRow>>> Owner_ListBySingleCompanyID(int CompanyID)
         {
             try
@@ -51,7 +105,7 @@ namespace WBM_API.WBM_API_DB
             }
             catch (Exception ex)
             {
-                logger.Error("Owner_SearchByID - " + CompanyID.ToString() + ": " + ex);
+                logger.Error("Owner_ListBySingleCompanyID - " + CompanyID.ToString() + ": " + ex);
                 return Result.Exception<List<wbm_common.DataObjects.Owner.dbRow>>("Internal Exception occured");
             }
         }
@@ -75,9 +129,28 @@ namespace WBM_API.WBM_API_DB
             }
         }
 
+        public async Task<Result<wbm_common.DataObjects.Owner.dbRow>> Owner_SearchBySourceOwnerID(string SourceOwnerID)
+        {
+            try
+            {
+                wbm_common.DataObjects.Owner.dbRow Owner = await _dbContext.Owner.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.SourceOwnerID == SourceOwnerID);
+
+                if (Owner == null)
+                    return Result.Failure<wbm_common.DataObjects.Owner.dbRow>("Owner not found : " + SourceOwnerID);
+                else
+                    return Result.Success<wbm_common.DataObjects.Owner.dbRow>(Owner);
+
+            }
+            catch (Exception ex)
+            {
+                logger.Error("Owner_SearchBySourceOwnerID - " + SourceOwnerID.ToString() + ": " + ex);
+                return Result.Exception<wbm_common.DataObjects.Owner.dbRow>("Internal Exception occured");
+            }
+        }
+
         // read and search are different because of the deleted flag
         //because of the way the results return work, it makes more sense to keep the result format for all and just have this be a list instead of a single return
-        public async Task<Result<List<wbm_common.DataObjects.Owner.dbRow>>> OwnerList_SearchByID(int ID)
+        public async Task<Result<List<wbm_common.DataObjects.Owner.dbRow>>> Owner_ListByID(int ID)
         {
             try
             {
@@ -90,7 +163,7 @@ namespace WBM_API.WBM_API_DB
             }
             catch (Exception ex)
             {
-                logger.Error("Owner_SearchByID - " + ID.ToString() + ": " + ex);
+                logger.Error("Owner_ListByID - " + ID.ToString() + ": " + ex);
                 return Result.Exception<List<wbm_common.DataObjects.Owner.dbRow>>("Internal Exception occured");
             }
         }

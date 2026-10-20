@@ -3,7 +3,7 @@ using NLog;
 using NLog.Web;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
 using wbm_common.DataObjects;
 
@@ -17,9 +17,9 @@ namespace WBM_API.Helpers.Excel
 
         private readonly WBMDatabase _WBMDB;
 
-        public List<wbm_common.DataObjects.Company.dbRow> companies = null;
+        public List<wbm_common.DataObjects.Company.dbRowExtended> companies = null;
         public List<wbm_common.DataObjects.Security_User.dbRow> users = null;
-        public List<wbm_common.DataObjects.RateCollectionDefn.dbRow> RateCollectionDefns = null;
+        public List<wbm_common.DataObjects.RateCollectionDefn.dbRowExtended> RateCollectionDefns = null;
         public Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> CallBackStatusFunction { get; set; }
         private IHubCallerClients Clients;
         public wbm_common.DataObjects.LongRunProcessHeader.dbRow lrph { get; set; }
@@ -72,7 +72,7 @@ namespace WBM_API.Helpers.Excel
         private async Task<bool> GetData()
         {
 
-            Result<List<wbm_common.DataObjects.RateCollectionDefn.dbRow>> rc = await RateCollectionDefnHelper.ExecuteSearch(RateCollectionDefnSearchData, _WBMDB);
+            Result<List<wbm_common.DataObjects.RateCollectionDefn.dbRowExtended>> rc = await RateCollectionDefnHelper.ExecuteSearch(RateCollectionDefnSearchData, _WBMDB);
 
             if (rc.IsFailure)
             {
@@ -89,7 +89,7 @@ namespace WBM_API.Helpers.Excel
 
             if (ListCompanyIDs.Count > 0)
             {
-                Result<List<wbm_common.DataObjects.Company.dbRow>> companiesResults = _WBMDB.Company_ListByListIDs(ListCompanyIDs).GetAwaiter().GetResult();
+                Result<List<wbm_common.DataObjects.Company.dbRowExtended>> companiesResults = _WBMDB.Company_ListByListIDs(ListCompanyIDs).GetAwaiter().GetResult();
                 if (companiesResults.IsFailure || companiesResults.IsException)
                 {
                     ErrorMessage = ErrorCodes.GeneralDB.ToString();

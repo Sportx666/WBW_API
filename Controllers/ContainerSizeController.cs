@@ -2,11 +2,9 @@
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NLog.Web;
-using System.Diagnostics;
 using WBM_API.Helpers;
 using WBM_API.Helpers.Excel;
-using WBM_API.Models;
-using WBM_API.Models.ResponseObjects;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
 using static WBM_API.Helpers.ControllerHelper;
 
@@ -45,7 +43,7 @@ public class ContainerSizeController : ControllerBase
             // Do the search
             // Item1 : error message
             // Item2 : search results
-            Result<List<wbm_common.DataObjects.ContainerSize.dbRow>> ContainerSizeSearchResult = await ContainerSizeHelper.ExecuteSearch((wbm_common.DataObjects.ContainerSize.Search)APICommonReturn.genericObject, _WBMDB);
+            Result<List<wbm_common.DataObjects.ContainerSize.dbRowExtended>> ContainerSizeSearchResult = await ContainerSizeHelper.ExecuteSearch((wbm_common.DataObjects.ContainerSize.Search)APICommonReturn.genericObject, _WBMDB);
 
             if (ContainerSizeSearchResult.IsException)
                 return Helpers.ActionResultUtils.Send500Response(new List<ErrorMessage> { new ErrorMessage { Error = ContainerSizeSearchResult.ErrorMessage } }, false, apiTransactionLog, _WBMDB);
@@ -68,8 +66,6 @@ public class ContainerSizeController : ControllerBase
         string APIEndPointName = "ContainerSizeSave";
         wbm_common.DataObjects.Log.dbRow apiTransactionLog = new wbm_common.DataObjects.Log.dbRow();
 
-        int UserID = 0;
-
         try
         {
             APILoggingReturn APICommonReturn = await CommonAPILogging(User, Request, APIEndPointName, _WBMDB, apiTransactionLog, "Save_IsValid", "Save_ValidationErrors", new wbm_common.DataObjects.ContainerSize());
@@ -79,7 +75,7 @@ public class ContainerSizeController : ControllerBase
             else if (APICommonReturn.errorCode == 500)
                 return Helpers.ActionResultUtils.Send500Response(new List<ErrorMessage> { new ErrorMessage { Error = APICommonReturn.error } }, false, apiTransactionLog, _WBMDB);
 
-            ContainerSizeHelper.ContainerSizeSave saveClass = new ContainerSizeHelper.ContainerSizeSave((wbm_common.DataObjects.ContainerSize)APICommonReturn.genericObject, UserID, _WBMDB);
+            ContainerSizeHelper.ContainerSizeSave saveClass = new ContainerSizeHelper.ContainerSizeSave((wbm_common.DataObjects.ContainerSize)APICommonReturn.genericObject, apiTransactionLog.UserID, _WBMDB);
 
             if (saveClass.Save())
                 return Helpers.ActionResultUtils.Send200Response((wbm_common.DataObjects.ContainerSize)APICommonReturn.genericObject, apiTransactionLog, _WBMDB);

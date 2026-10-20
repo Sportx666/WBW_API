@@ -2,18 +2,19 @@
 using NLog;
 using NLog.Web;
 using System.Data.SqlTypes;
-using WBM_API.Models;
 using WBM_API.WBM_API_DB;
+using wbm_common.DataObjects;
+using wbm_common.NonDatabaseObjects;
 
 namespace WBM_API.Helpers
 {
     public class ActionRateCodeHelper
     {
         private static Logger logger = LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
-        public static async Task<Result<List<wbm_common.DataObjects.ActionRateCode.dbRow>>> ExecuteSearch(wbm_common.DataObjects.ActionRateCode.Search _ActionRateCodeSearchData, WBMDatabase _WBMDB, IHubCallerClients Clients = null, Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> inCallBackStatusFunction = null, wbm_common.DataObjects.LongRunProcessHeader.dbRow longRunProcessHeader = null)
+        public static async Task<Result<List<wbm_common.DataObjects.ActionRateCode.dbRowExtended>>> ExecuteSearch(wbm_common.DataObjects.ActionRateCode.Search _ActionRateCodeSearchData, WBMDatabase _WBMDB, IHubCallerClients Clients = null, Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> inCallBackStatusFunction = null, wbm_common.DataObjects.LongRunProcessHeader.dbRow longRunProcessHeader = null)
         {
-            Result<List<wbm_common.DataObjects.ActionRateCode.dbRow>> rc;
-            List<wbm_common.DataObjects.ActionRateCode.dbRow> ActionRateCodes;
+            Result<List<wbm_common.DataObjects.ActionRateCode.dbRowExtended>> rc;
+            List<wbm_common.DataObjects.ActionRateCode.dbRowExtended> ActionRateCodes;
             switch (_ActionRateCodeSearchData.SearchMode)
             {
                 case wbm_common.DataObjects.ActionRateCode.Search.SearchModeType.Undefined:
@@ -24,7 +25,7 @@ namespace WBM_API.Helpers
                     }
                 case wbm_common.DataObjects.ActionRateCode.Search.SearchModeType.SingleID:
                     {
-                        rc = await _WBMDB.ActionRateCodeList_SearchByID(_ActionRateCodeSearchData.ID);
+                        rc = await _WBMDB.ActionRateCode_ListByID(_ActionRateCodeSearchData.ID);
                         break;
                     }
                 case wbm_common.DataObjects.ActionRateCode.Search.SearchModeType.AllRecords:
@@ -37,7 +38,7 @@ namespace WBM_API.Helpers
                         if (_ActionRateCodeSearchData.ListOwnerID == null || _ActionRateCodeSearchData.ListOwnerID.Count() != 1)
                         {
                             logger.Error("ActionRateCodeHelper.ExecuteSearch: ActionRateCode SingleOwner doesn't have single owner input");
-                            rc = Result.Exception<List<wbm_common.DataObjects.ActionRateCode.dbRow>>("Internal Exception occured");
+                            rc = Result.Exception<List<wbm_common.DataObjects.ActionRateCode.dbRowExtended>>("Internal Exception occured");
                             break;
                         }
                         rc = await _WBMDB.ActionRateCode_ListBySingleOwnerID(_ActionRateCodeSearchData.ListOwnerID[0]);
@@ -46,7 +47,7 @@ namespace WBM_API.Helpers
                 default:
                     {
                         logger.Error("ActionRateCodeHelper.ExecuteSearch: ActionRateCode Search Mode Type Error");
-                        rc = Result.Exception<List<wbm_common.DataObjects.ActionRateCode.dbRow>>("Internal Exception occured");
+                        rc = Result.Exception<List<wbm_common.DataObjects.ActionRateCode.dbRowExtended>>("Internal Exception occured");
                         break;
                     }
             }
@@ -101,6 +102,13 @@ namespace WBM_API.Helpers
 
             public Boolean Save()
             {
+                List<string> fieldErrors = DbRowValidator.requiredFieldErrors(ActionRateCode.MyRequiredList, saveRow, _WBMDB);
+                if (fieldErrors.Count() > 0)
+                {
+                    ErrorMessage = string.Join(", ", fieldErrors);
+                    ReturnState = 400;
+                    return false;
+                }
                 if (CheckExist())
                 {
                     if (Exists)
@@ -189,37 +197,6 @@ namespace WBM_API.Helpers
                     IsNew = true;
                 #endregion
 
-                #region Check that PublicID is unique
-                if (Exists && saveRow.ID == existRow.ID)
-                {
-                    // Don't need to check as we are the same
-                }
-                else
-                {
-                    Result<wbm_common.DataObjects.ActionRateCode.dbRow> rcexist = _WBMDB.ActionRateCode_SearchByID(saveRow.ID).GetAwaiter().GetResult();
-
-                    if (rcexist.IsException)
-                    {
-                        SavedSuccessfully = false;
-                        ReturnState = 500;
-                    }
-                    else if (rcexist.IsFailure)
-                    {
-                        // Not found, so ok to continue
-                    }
-                    else
-                    {
-                        // We have at least one row... :(
-                        ErrorMessage = "ID already in use, must be unique - " + saveRow.ID;
-                        logger.Error("ActionRateCodeSave ID " + saveRow.ID + " already exists");
-                        ReturnState = 400;
-                        SavedSuccessfully = false;
-                        return false;
-                    }
-                }
-
-                #endregion
-
                 return true;
             }
 
@@ -292,12 +269,10 @@ namespace WBM_API.Helpers
                     {
                         changeHeaderRow.ID = chResult.Value;
 
-                        int ChangeHeaderTableID = (int)wbm_common.DataObjects.ChangeTracking.ChangeHeaderTableID.ActionRateCode;
-
                         foreach (wbm_common.DataObjects.ChangeDetail.dbRow cdRow in ct.ListChangeDetail)
                         {
                             cdRow.ChangeHeaderID = changeHeaderRow.ID;
-                            cdRow.ChangeHeaderTableID = ChangeHeaderTableID;
+                            cdRow.ChangeHeaderTableID = changeHeaderRow.ChangeHeaderTableID;
                             cdRow.RecordID = changeHeaderRow.RecordID;
 
                             Result<int> cdResult = _WBMDB.ChangeDetail_Insert((wbm_common.DataObjects.ChangeDetail.dbRow)cdRow).GetAwaiter().GetResult();

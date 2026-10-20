@@ -2,18 +2,19 @@
 using NLog;
 using NLog.Web;
 using System.Data.SqlTypes;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
+using wbm_common.DataObjects;
 
 namespace WBM_API.Helpers
 {
     public class ZoneProcessingHelper
     {
         private static Logger logger = LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
-        public static async Task<Result<List<wbm_common.DataObjects.ZoneProcessing.dbRow>>> ExecuteSearch(wbm_common.DataObjects.ZoneProcessing.Search _ZoneProcessingSearchData, WBMDatabase _WBMDB, IHubCallerClients Clients = null, Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> inCallBackStatusFunction = null, wbm_common.DataObjects.LongRunProcessHeader.dbRow longRunProcessHeader = null)
+        public static async Task<Result<List<wbm_common.DataObjects.ZoneProcessing.dbRowExtended>>> ExecuteSearch(wbm_common.DataObjects.ZoneProcessing.Search _ZoneProcessingSearchData, WBMDatabase _WBMDB, IHubCallerClients Clients = null, Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> inCallBackStatusFunction = null, wbm_common.DataObjects.LongRunProcessHeader.dbRow longRunProcessHeader = null)
         {
-            Result<List<wbm_common.DataObjects.ZoneProcessing.dbRow>> rc;
-            List<wbm_common.DataObjects.ZoneProcessing.dbRow> ZoneProcessings;
+            Result<List<wbm_common.DataObjects.ZoneProcessing.dbRowExtended>> rc;
+            List<wbm_common.DataObjects.ZoneProcessing.dbRowExtended> ZoneProcessings;
             switch (_ZoneProcessingSearchData.SearchMode)
             {
                 case wbm_common.DataObjects.ZoneProcessing.Search.SearchModeType.Undefined:
@@ -24,7 +25,7 @@ namespace WBM_API.Helpers
                     }
                 case wbm_common.DataObjects.ZoneProcessing.Search.SearchModeType.SingleID:
                     {
-                        rc = await _WBMDB.ZoneProcessingList_SearchByID(_ZoneProcessingSearchData.ID);
+                        rc = await _WBMDB.ZoneProcessing_ListByID(_ZoneProcessingSearchData.ID);
                         break;
                     }
                 case wbm_common.DataObjects.ZoneProcessing.Search.SearchModeType.AllRecords:
@@ -37,7 +38,7 @@ namespace WBM_API.Helpers
                         if (_ZoneProcessingSearchData.ListSiteID == null || _ZoneProcessingSearchData.ListSiteID.Count() != 1)
                         {
                             logger.Error("ZoneProcessingHelper.ExecuteSearch: ZoneProcessing SingleSite doesn't have single site input");
-                            rc = Result.Exception<List<wbm_common.DataObjects.ZoneProcessing.dbRow>>("Internal Exception occured");
+                            rc = Result.Exception<List<wbm_common.DataObjects.ZoneProcessing.dbRowExtended>>("Internal Exception occured");
                             break;
                         }
                         rc = await _WBMDB.ZoneProcessing_ListBySingleSiteID(_ZoneProcessingSearchData.ListSiteID[0]);
@@ -48,16 +49,27 @@ namespace WBM_API.Helpers
                         if (_ZoneProcessingSearchData.ListCompanyID == null || _ZoneProcessingSearchData.ListCompanyID.Count() != 1)
                         {
                             logger.Error("ZoneProcessingHelper.ExecuteSearch: ZoneProcessing SingleCompany doesn't have single company input");
-                            rc = Result.Exception<List<wbm_common.DataObjects.ZoneProcessing.dbRow>>("Internal Exception occured");
+                            rc = Result.Exception<List<wbm_common.DataObjects.ZoneProcessing.dbRowExtended>>("Internal Exception occured");
                             break;
                         }
                         rc = await _WBMDB.ZoneProcessing_ListBySingleCompanyID(_ZoneProcessingSearchData.ListCompanyID[0]);
                         break;
                     }
+                case wbm_common.DataObjects.ZoneProcessing.Search.SearchModeType.SiteZoneNumber:
+                    {
+                        if (_ZoneProcessingSearchData.ListSiteID == null || _ZoneProcessingSearchData.ListSiteID.Count() != 1)
+                        {
+                            logger.Error("ZoneProcessingHelper.ExecuteSearch: ZoneProcessing SiteZoneNumber doesn't have single site input");
+                            rc = Result.Exception<List<wbm_common.DataObjects.ZoneProcessing.dbRowExtended>>("Internal Exception occured");
+                            break;
+                        }
+                        rc = await _WBMDB.ZoneProcessing_ListBySingleSiteIDZoneNumber(_ZoneProcessingSearchData.ListSiteID[0], _ZoneProcessingSearchData.ZoneNumber);
+                        break;
+                    }
                 default:
                     {
                         logger.Error("ZoneProcessingHelper.ExecuteSearch: ZoneProcessing Search Mode Type Error");
-                        rc = Result.Exception<List<wbm_common.DataObjects.ZoneProcessing.dbRow>>("Internal Exception occured");
+                        rc = Result.Exception<List<wbm_common.DataObjects.ZoneProcessing.dbRowExtended>>("Internal Exception occured");
                         break;
                     }
             }
@@ -112,6 +124,13 @@ namespace WBM_API.Helpers
 
             public Boolean Save()
             {
+                List<string> fieldErrors = DbRowValidator.requiredFieldErrors(ZoneProcessing.MyRequiredList, saveRow, _WBMDB);
+                if (fieldErrors.Count() > 0)
+                {
+                    ErrorMessage = string.Join(", ", fieldErrors);
+                    ReturnState = 400;
+                    return false;
+                }
                 if (CheckExist())
                 {
                     if (Exists)
@@ -200,14 +219,14 @@ namespace WBM_API.Helpers
                     IsNew = true;
                 #endregion
 
-                #region Check that PublicID is unique
+                #region Check that ZoneNumber is unique
                 if (Exists && saveRow.ID == existRow.ID)
                 {
                     // Don't need to check as we are the same
                 }
                 else
                 {
-                    Result<wbm_common.DataObjects.ZoneProcessing.dbRow> rcexist = _WBMDB.ZoneProcessing_SearchByID(saveRow.ID).GetAwaiter().GetResult();
+                    Result<wbm_common.DataObjects.ZoneProcessing.dbRow> rcexist = _WBMDB.ZoneProcessing_SearchByZoneNumber(saveRow.ZoneNumber).GetAwaiter().GetResult();
 
                     if (rcexist.IsException)
                     {
@@ -221,8 +240,8 @@ namespace WBM_API.Helpers
                     else
                     {
                         // We have at least one row... :(
-                        ErrorMessage = "ID already in use, must be unique - " + saveRow.ID.ToString();
-                        logger.Error("ZoneProcessingSave ID " + saveRow.ID.ToString() + " already exists");
+                        ErrorMessage = "ZoneNumber already in use, must be unique - " + saveRow.ZoneNumber;
+                        logger.Error("ZoneProcessingSave ZoneNumber " + saveRow.ZoneNumber + " already exists");
                         ReturnState = 400;
                         SavedSuccessfully = false;
                         return false;
@@ -262,22 +281,45 @@ namespace WBM_API.Helpers
 
             public Boolean Save_New()
             {
+                SavedSuccessfully = true;
+                using var transaction = _WBMDB.dbContext.Database.BeginTransaction();
+
+                transaction.CreateSavepoint("Start");
+
                 Result<int> sr = _WBMDB.ZoneProcessing_Insert(saveRow).GetAwaiter().GetResult();
 
                 if (sr.IsSuccess)
                 {
                     saveRow.ID = sr.Value;
-                    return true;
+
+                    if (saveObject.ToDo != null)
+                    {
+                        saveObject.ToDo.dbRow_instance.SourceID = saveRow.ID;
+                        ChangeTracking CTO = new ChangeTracking();
+                        ToDoHelper TDH = new ToDoHelper();
+                        Result<int> todo_result = TDH.ExternalAddInTodo(_WBMDB, saveObject.ToDo.dbRow_instance);
+                        if (!todo_result.IsSuccess)
+                        {
+                            SavedSuccessfully = false;
+                            ErrorMessage = todo_result.ErrorMessage;
+                            ReturnState = 500;
+                        }
+                    }
+                    if (SavedSuccessfully)
+                    {
+                        transaction.Commit();
+                        return true;
+                    }
                 }
                 else
                 {
                     ErrorMessage = sr.ErrorMessage;
-                    if (sr.IsException)
-                        ReturnState = 500;
-                    else
-                        ReturnState = 400;
-                    return false;
+                    ReturnState = 500;
                 }
+
+                transaction.RollbackToSavepoint("Start");
+                SavedSuccessfully = false;
+                return false;
             }
 
             public Boolean Save_Update_or_Delete()
@@ -293,56 +335,36 @@ namespace WBM_API.Helpers
                 // Deletes are just an update with DeletedFlag true
                 Result<int> cuResult = _WBMDB.ZoneProcessing_Update(saveRow).GetAwaiter().GetResult();
 
-                #region ChangeHeader and detail
+                #region ChangeHeader, detail and ToDo
                 if (cuResult.IsSuccess)
                 {
-                    // Insert ChangeHeader and detail entries
-                    Result<int> chResult = _WBMDB.ChangeHeader_Insert(changeHeaderRow).GetAwaiter().GetResult();
-
-                    if (chResult.IsSuccess)
-                    {
-                        changeHeaderRow.ID = chResult.Value;
-
-                        int ChangeHeaderTableID = (int)wbm_common.DataObjects.ChangeTracking.ChangeHeaderTableID.ZoneProcessing;
-
-                        foreach (wbm_common.DataObjects.ChangeDetail.dbRow cdRow in ct.ListChangeDetail)
-                        {
-                            cdRow.ChangeHeaderID = changeHeaderRow.ID;
-                            cdRow.ChangeHeaderTableID = ChangeHeaderTableID;
-                            cdRow.RecordID = changeHeaderRow.RecordID;
-
-                            Result<int> cdResult = _WBMDB.ChangeDetail_Insert((wbm_common.DataObjects.ChangeDetail.dbRow)cdRow).GetAwaiter().GetResult();
-                            if (cdResult.IsFailure)
-                            {
-                                // Error occured
-                                ErrorOccured = true;
-                                ErrorMessage = cdResult.ErrorMessage;
-                                if (cdResult.IsException)
-                                    ReturnState = 500;
-                                else
-                                    ReturnState = 400;
-                                break;
-                            }
-                        }
-                    }
-                    else
+                    if (saveObject.ToDo != null)
+                        saveObject.ToDo.dbRow_instance.SourceID = cuResult.Value;
+                    ChangeTracking CTO = new ChangeTracking();
+                    string RtnError = CTO.addInChangeHeaderDetail(_WBMDB, changeHeaderRow, ct);
+                    if (RtnError != "")
                     {
                         ErrorOccured = true;
-                        ErrorMessage = chResult.ErrorMessage;
-                        if (chResult.IsException)
+                        ErrorMessage = RtnError;
+                        ReturnState = 500;
+                    }
+                    else if (saveObject.ToDo != null)
+                    {
+                        ToDoHelper TDH = new ToDoHelper();
+                        Result<int> todo_result = TDH.ExternalAddInTodo(_WBMDB, saveObject.ToDo.dbRow_instance);
+                        if (!todo_result.IsSuccess)
+                        {
+                            SavedSuccessfully = false;
+                            ErrorMessage = todo_result.ErrorMessage;
                             ReturnState = 500;
-                        else
-                            ReturnState = 400;
+                        }
                     }
                 }
                 else
                 {
                     ErrorOccured = true;
                     ErrorMessage = cuResult.ErrorMessage;
-                    if (cuResult.IsException)
-                        ReturnState = 500;
-                    else
-                        ReturnState = 400;
+                    ReturnState = 500;
                 }
                 #endregion
 

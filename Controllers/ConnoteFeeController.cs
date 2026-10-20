@@ -5,8 +5,7 @@ using NLog.Web;
 using System.Diagnostics;
 using WBM_API.Helpers;
 using WBM_API.Helpers.Excel;
-using WBM_API.Models;
-using WBM_API.Models.ResponseObjects;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
 using static WBM_API.Helpers.ControllerHelper;
 
@@ -45,7 +44,7 @@ public class ConnoteFeeController : ControllerBase
             // Do the search
             // Item1 : error message
             // Item2 : search results
-            Result<List<wbm_common.DataObjects.ConnoteFee.dbRow>> ConnoteFeeSearchResult = await ConnoteFeeHelper.ExecuteSearch((wbm_common.DataObjects.ConnoteFee.Search)APICommonReturn.genericObject, _WBMDB);
+            Result<List<wbm_common.DataObjects.ConnoteFee.dbRowExtended>> ConnoteFeeSearchResult = await ConnoteFeeHelper.ExecuteSearch((wbm_common.DataObjects.ConnoteFee.Search)APICommonReturn.genericObject, _WBMDB);
 
             if (ConnoteFeeSearchResult.IsException)
                 return Helpers.ActionResultUtils.Send500Response(new List<ErrorMessage> { new ErrorMessage { Error = ConnoteFeeSearchResult.ErrorMessage } }, false, apiTransactionLog, _WBMDB);
@@ -68,8 +67,6 @@ public class ConnoteFeeController : ControllerBase
         string APIEndPointName = "ConnoteFeeSave";
         wbm_common.DataObjects.Log.dbRow apiTransactionLog = new wbm_common.DataObjects.Log.dbRow();
 
-        int UserID = 0;
-
         try
         {
             APILoggingReturn APICommonReturn = await CommonAPILogging(User, Request, APIEndPointName, _WBMDB, apiTransactionLog, "Save_IsValid", "Save_ValidationErrors", new wbm_common.DataObjects.ConnoteFee());
@@ -79,7 +76,7 @@ public class ConnoteFeeController : ControllerBase
             else if (APICommonReturn.errorCode == 500)
                 return Helpers.ActionResultUtils.Send500Response(new List<ErrorMessage> { new ErrorMessage { Error = APICommonReturn.error } }, false, apiTransactionLog, _WBMDB);
 
-            ConnoteFeeHelper.ConnoteFeeSave saveClass = new ConnoteFeeHelper.ConnoteFeeSave((wbm_common.DataObjects.ConnoteFee)APICommonReturn.genericObject, UserID, _WBMDB);
+            ConnoteFeeHelper.ConnoteFeeSave saveClass = new ConnoteFeeHelper.ConnoteFeeSave((wbm_common.DataObjects.ConnoteFee)APICommonReturn.genericObject, apiTransactionLog.UserID, _WBMDB);
 
             if (saveClass.Save())
                 return Helpers.ActionResultUtils.Send200Response((wbm_common.DataObjects.ConnoteFee)APICommonReturn.genericObject, apiTransactionLog, _WBMDB);

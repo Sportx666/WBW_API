@@ -3,7 +3,7 @@ using NLog;
 using NLog.Web;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
 using wbm_common.DataObjects;
 
@@ -18,7 +18,7 @@ namespace WBM_API.Helpers.Excel
         private readonly WBMDatabase _WBMDB;
 
         public List<wbm_common.DataObjects.Security_User.dbRow> users = null;
-        public List<wbm_common.DataObjects.TableRate.dbRow> TableRates = null;
+        public List<wbm_common.DataObjects.TableRate.dbRowExtended> TableRates = null;
         public Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> CallBackStatusFunction { get; set; }
         private IHubCallerClients Clients;
         public wbm_common.DataObjects.LongRunProcessHeader.dbRow lrph { get; set; }
@@ -71,7 +71,7 @@ namespace WBM_API.Helpers.Excel
         private async Task<bool> GetData()
         {
 
-            Result<List<wbm_common.DataObjects.TableRate.dbRow>> rc = await TableRateHelper.ExecuteSearch(TableRateSearchData, _WBMDB);
+            Result<List<wbm_common.DataObjects.TableRate.dbRowExtended>> rc = await TableRateHelper.ExecuteSearch(TableRateSearchData, _WBMDB);
 
             if (rc.IsFailure)
             {
@@ -152,7 +152,8 @@ namespace WBM_API.Helpers.Excel
                 TableRateWS.Cells[rc, 2].Value = TableRates[i].TableBreak;
                 TableRateWS.Cells[rc, 3].Value = TableRates[i].TableUnits;
                 TableRateWS.Cells[rc, 4].Value = TableRates[i].TableCharge;
-                TableRateWS.Cells[rc, 5].Value = TableRates[i].DateOfChange.ToOADate();
+                if (TableRates[i].DateOfChange.HasValue)
+                    TableRateWS.Cells[rc, 5].Value = TableRates[i].DateOfChange.Value.ToOADate();
                 TableRateWS.Cells[rc, 6].Value = TableRates[i].NewTableCharge;
 
                 TableRateWS.Cells[rc, 7].Value = TableRates[i].CreatedDateTime.ToOADate();

@@ -1,6 +1,5 @@
-﻿using Microsoft.AspNetCore.Http.HttpResults;
-using WBM_API.Models;
-using WBM_API.WBM_API_DB;
+﻿using WBM_API.WBM_API_DB;
+using wbm_common.NonDatabaseObjects;
 
 namespace WBM_API.Helpers
 {

@@ -2,11 +2,9 @@
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NLog.Web;
-using System.Diagnostics;
 using WBM_API.Helpers;
 using WBM_API.Helpers.Excel;
-using WBM_API.Models;
-using WBM_API.Models.ResponseObjects;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
 using static WBM_API.Helpers.ControllerHelper;
 
@@ -45,7 +43,7 @@ public class ContainerHeavyLiftController : ControllerBase
             // Do the search
             // Item1 : error message
             // Item2 : search results
-            Result<List<wbm_common.DataObjects.ContainerHeavyLift.dbRow>> ContainerHeavyLiftSearchResult = await ContainerHeavyLiftHelper.ExecuteSearch((wbm_common.DataObjects.ContainerHeavyLift.Search)APICommonReturn.genericObject, _WBMDB);
+            Result<List<wbm_common.DataObjects.ContainerHeavyLift.dbRowExtended>> ContainerHeavyLiftSearchResult = await ContainerHeavyLiftHelper.ExecuteSearch((wbm_common.DataObjects.ContainerHeavyLift.Search)APICommonReturn.genericObject, _WBMDB);
 
             if (ContainerHeavyLiftSearchResult.IsException)
                 return Helpers.ActionResultUtils.Send500Response(new List<ErrorMessage> { new ErrorMessage { Error = ContainerHeavyLiftSearchResult.ErrorMessage } }, false, apiTransactionLog, _WBMDB);
@@ -68,8 +66,6 @@ public class ContainerHeavyLiftController : ControllerBase
         string APIEndPointName = "ContainerHeavyLiftSave";
         wbm_common.DataObjects.Log.dbRow apiTransactionLog = new wbm_common.DataObjects.Log.dbRow();
 
-        int UserID = 0;
-
         try
         {
             APILoggingReturn APICommonReturn = await CommonAPILogging(User, Request, APIEndPointName, _WBMDB, apiTransactionLog, "Save_IsValid", "Save_ValidationErrors", new wbm_common.DataObjects.ContainerHeavyLift());
@@ -79,7 +75,7 @@ public class ContainerHeavyLiftController : ControllerBase
             else if (APICommonReturn.errorCode == 500)
                 return Helpers.ActionResultUtils.Send500Response(new List<ErrorMessage> { new ErrorMessage { Error = APICommonReturn.error } }, false, apiTransactionLog, _WBMDB);
 
-            ContainerHeavyLiftHelper.ContainerHeavyLiftSave saveClass = new ContainerHeavyLiftHelper.ContainerHeavyLiftSave((wbm_common.DataObjects.ContainerHeavyLift)APICommonReturn.genericObject, UserID, _WBMDB);
+            ContainerHeavyLiftHelper.ContainerHeavyLiftSave saveClass = new ContainerHeavyLiftHelper.ContainerHeavyLiftSave((wbm_common.DataObjects.ContainerHeavyLift)APICommonReturn.genericObject, apiTransactionLog.UserID, _WBMDB);
 
             if (saveClass.Save())
                 return Helpers.ActionResultUtils.Send200Response((wbm_common.DataObjects.ContainerHeavyLift)APICommonReturn.genericObject, apiTransactionLog, _WBMDB);

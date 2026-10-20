@@ -2,18 +2,19 @@
 using NLog;
 using NLog.Web;
 using System.Data.SqlTypes;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
+using wbm_common.DataObjects;
 
 namespace WBM_API.Helpers
 {
     public class SiteHelper
     {
         private static Logger logger = LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
-        public static async Task<Result<List<wbm_common.DataObjects.Site.dbRow>>> ExecuteSearch(wbm_common.DataObjects.Site.Search _SiteSearchData, WBMDatabase _WBMDB, IHubCallerClients Clients = null, Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> inCallBackStatusFunction = null, wbm_common.DataObjects.LongRunProcessHeader.dbRow longRunProcessHeader = null)
+        public static async Task<Result<List<wbm_common.DataObjects.Site.dbRowExtended>>> ExecuteSearch(wbm_common.DataObjects.Site.Search _SiteSearchData, WBMDatabase _WBMDB, IHubCallerClients Clients = null, Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> inCallBackStatusFunction = null, wbm_common.DataObjects.LongRunProcessHeader.dbRow longRunProcessHeader = null)
         {
-            Result<List<wbm_common.DataObjects.Site.dbRow>> rc;
-            List<wbm_common.DataObjects.Site.dbRow> Sites;
+            Result<List<wbm_common.DataObjects.Site.dbRowExtended>> rc;
+            List<wbm_common.DataObjects.Site.dbRowExtended> Sites;
             switch (_SiteSearchData.SearchMode)
             {
                 case wbm_common.DataObjects.Site.Search.SearchModeType.Undefined:
@@ -24,7 +25,7 @@ namespace WBM_API.Helpers
                     }
                 case wbm_common.DataObjects.Site.Search.SearchModeType.SingleID:
                     {
-                        rc = await _WBMDB.SiteList_SearchByID(_SiteSearchData.ID);
+                        rc = await _WBMDB.Site_ListByID(_SiteSearchData.ID);
                         break;
                     }
                 case wbm_common.DataObjects.Site.Search.SearchModeType.AllRecords:
@@ -35,7 +36,7 @@ namespace WBM_API.Helpers
                 default:
                     {
                         logger.Error("SiteHelper.ExecuteSearch: Site Search Mode Type Error");
-                        rc = Result.Exception<List<wbm_common.DataObjects.Site.dbRow>>("Internal Exception occured");
+                        rc = Result.Exception<List<wbm_common.DataObjects.Site.dbRowExtended>>("Internal Exception occured");
                         break;
                     }
             }
@@ -90,6 +91,13 @@ namespace WBM_API.Helpers
 
             public Boolean Save()
             {
+                List<string> fieldErrors = DbRowValidator.requiredFieldErrors(Site.MyRequiredList, saveRow, _WBMDB);
+                if (fieldErrors.Count() > 0)
+                {
+                    ErrorMessage = string.Join(", ", fieldErrors);
+                    ReturnState = 400;
+                    return false;
+                }
                 if (CheckExist())
                 {
                     if (Exists)
@@ -185,7 +193,7 @@ namespace WBM_API.Helpers
                 }
                 else
                 {
-                    Result<wbm_common.DataObjects.Site.dbRow> rcexist = _WBMDB.Site_SearchByID(saveRow.ID).GetAwaiter().GetResult();
+                    Result<wbm_common.DataObjects.Site.dbRow> rcexist = _WBMDB.Site_SearchByPublicID(saveRow.PublicID).GetAwaiter().GetResult();
 
                     if (rcexist.IsException)
                     {
@@ -199,8 +207,8 @@ namespace WBM_API.Helpers
                     else
                     {
                         // We have at least one row... :(
-                        ErrorMessage = "ID already in use, must be unique - " + saveRow.ID.ToString();
-                        logger.Error("SiteSave ID " + saveRow.ID.ToString() + " already exists");
+                        ErrorMessage = "PublicID already in use, must be unique - " + saveRow.PublicID;
+                        logger.Error("SiteSave PublicID " + saveRow.PublicID + " already exists");
                         ReturnState = 400;
                         SavedSuccessfully = false;
                         return false;
@@ -281,12 +289,10 @@ namespace WBM_API.Helpers
                     {
                         changeHeaderRow.ID = chResult.Value;
 
-                        int ChangeHeaderTableID = (int)wbm_common.DataObjects.ChangeTracking.ChangeHeaderTableID.Site;
-
                         foreach (wbm_common.DataObjects.ChangeDetail.dbRow cdRow in ct.ListChangeDetail)
                         {
                             cdRow.ChangeHeaderID = changeHeaderRow.ID;
-                            cdRow.ChangeHeaderTableID = ChangeHeaderTableID;
+                            cdRow.ChangeHeaderTableID = changeHeaderRow.ChangeHeaderTableID;
                             cdRow.RecordID = changeHeaderRow.RecordID;
 
                             Result<int> cdResult = _WBMDB.ChangeDetail_Insert((wbm_common.DataObjects.ChangeDetail.dbRow)cdRow).GetAwaiter().GetResult();

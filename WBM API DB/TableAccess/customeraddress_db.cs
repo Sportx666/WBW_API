@@ -1,6 +1,9 @@
 ﻿using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using WBM_API.Models;
+using OfficeOpenXml.FormulaParsing.Excel.Functions.Logical;
+using System.Runtime.ConstrainedExecution;
+using wbm_common.DataObjects;
+using wbm_common.NonDatabaseObjects;
 
 namespace WBM_API.WBM_API_DB
 {
@@ -41,60 +44,195 @@ namespace WBM_API.WBM_API_DB
         }
 
 
-        public async Task<Result<List<wbm_common.DataObjects.CustomerAddress.dbRow>>> CustomerAddress_ListByPaperlessKeyID(string PaperlessKeyID)
+        public async Task<Result<List<wbm_common.DataObjects.CustomerAddress.dbRowExtended>>> CustomerAddress_ListByPaperlessKeyID(string PaperlessKeyID)
         {
             try
             {
-                wbm_common.DataObjects.CustomerAddress.dbRow CustomerAddress = await _dbContext.CustomerAddress.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.Paperless_KeyID == PaperlessKeyID);
+                List<wbm_common.DataObjects.CustomerAddress.dbRowExtended> CustomerAddressDb = await (from CustomerAddress in _dbContext.CustomerAddress.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && x.Paperless_KeyID == PaperlessKeyID)
+                                                                                              join site in _dbContext.Site.AsNoTracking()
+                                                                                                  on CustomerAddress.SiteID equals site.ID into sitePR
+                                                                                                      from SPR in sitePR.DefaultIfEmpty()
+                                                                                                      join company in _dbContext.Company.AsNoTracking()
+                                                                                                  on CustomerAddress.CompanyID equals company.ID into companyPR
+                                                                                                      from CPR in companyPR.DefaultIfEmpty()
+                                                                                                      join Owner in _dbContext.Owner.AsNoTracking()
+                                                                                                  on CustomerAddress.OwnerID equals Owner.ID into OwnerPR
+                                                                                                      from OPR in OwnerPR.DefaultIfEmpty()
+                                                                                                      join SecurityUser in _dbContext.Security_User.AsNoTracking()
+                                                                                          on CustomerAddress.CreatedUserID equals SecurityUser.ID into SecurityUserPR
+                                                                                                      from SU in SecurityUserPR.DefaultIfEmpty()
 
-                if (CustomerAddress == null)
-                    return Result.Success<List<wbm_common.DataObjects.CustomerAddress.dbRow>>(new List<wbm_common.DataObjects.CustomerAddress.dbRow>());
+                                                                                                      select new CustomerAddress.dbRowExtended
+                                                                                              {
+                                                                                                  ID = CustomerAddress.ID,
+                                                                                                  CompanyID = CustomerAddress.CompanyID,
+                                                                                                  OwnerID = CustomerAddress.OwnerID,
+                                                                                                  SiteID = CustomerAddress.SiteID,
+                                                                                                  CustomerID = CustomerAddress.CustomerID,
+                                                                                                  Name = CustomerAddress.Name,
+                                                                                                  AddressLine1 = CustomerAddress.AddressLine1,
+                                                                                                  AddressLine2 = CustomerAddress.AddressLine2,
+                                                                                                  AddressLine3 = CustomerAddress.AddressLine3,
+                                                                                                  AddressLine4 = CustomerAddress.AddressLine4,
+                                                                                                  Suburb = CustomerAddress.Suburb,
+                                                                                                  State = CustomerAddress.State,
+                                                                                                  PostCode = CustomerAddress.PostCode,
+                                                                                                  PalletHireDelayDays = CustomerAddress.PalletHireDelayDays,
+                                                                                                  InvoiceEnclosed = CustomerAddress.InvoiceEnclosed,
+                                                                                                  Paperless_KeyID = CustomerAddress.Paperless_KeyID,
+                                                                                                  DeletedFlag = CustomerAddress.DeletedFlag,
+                                                                                                  CreatedDateTime = CustomerAddress.CreatedDateTime,
+                                                                                                  CreatedMethod = CustomerAddress.CreatedMethod,
+                                                                                                  CreatedUserID = CustomerAddress.CreatedUserID,
+                                                                                                  LastAmendedDateTime = CustomerAddress.LastAmendedDateTime,
+                                                                                                  LastAmendedMethod = CustomerAddress.LastAmendedMethod,
+                                                                                                  LastAmendedUserID = CustomerAddress.LastAmendedUserID,
+                                                                                                  Connote_RateCollectionRateChargeCode = CustomerAddress.Connote_RateCollectionRateChargeCode,
+
+                                                                                                  Site_PublicID = SPR.PublicID,
+                                                                                                  Company_ShortName = CPR.ShortName,
+                                                                                                  Owner_Name = OPR.Name,
+                                                                                                  Created_UserPublicID = SU.PublicID
+                                                                                              }).ToListAsync();
+
+                if (CustomerAddressDb == null)
+                    return Result.Success<List<wbm_common.DataObjects.CustomerAddress.dbRowExtended>>(new List<wbm_common.DataObjects.CustomerAddress.dbRowExtended>());
                 else
-                    return Result.Success<List<wbm_common.DataObjects.CustomerAddress.dbRow>>(new List<wbm_common.DataObjects.CustomerAddress.dbRow> { CustomerAddress });
+                    return Result.Success<List<wbm_common.DataObjects.CustomerAddress.dbRowExtended>>(CustomerAddressDb);
             }
             catch (Exception ex)
             {
-                logger.Error("CustomerAddress_ListBySingleOwnerID - " + PaperlessKeyID + ": " + ex);
-                return Result.Exception<List<wbm_common.DataObjects.CustomerAddress.dbRow>>("Internal Exception occured");
-            }
-        }
-
-        // read and search are different because of the deleted flag
-        public async Task<Result<wbm_common.DataObjects.CustomerAddress.dbRow>> CustomerAddress_SearchByID(int ID)
-        {
-            try
-            {
-                wbm_common.DataObjects.CustomerAddress.dbRow CustomerAddress = await _dbContext.CustomerAddress.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.ID == ID);
-
-                if (CustomerAddress == null)
-                    return Result.Failure<wbm_common.DataObjects.CustomerAddress.dbRow>("CustomerAddress not found : " + ID);
-                else
-                    return Result.Success<wbm_common.DataObjects.CustomerAddress.dbRow>(CustomerAddress);
-
-            }
-            catch (Exception ex)
-            {
-                logger.Error("CustomerAddress_SearchByID - " + ID.ToString() + ": " + ex);
-                return Result.Exception<wbm_common.DataObjects.CustomerAddress.dbRow>("Internal Exception occured");
+                logger.Error("CustomerAddress_ListByPaperlessKeyID - " + PaperlessKeyID + ": " + ex);
+                return Result.Exception<List<wbm_common.DataObjects.CustomerAddress.dbRowExtended>>("Internal Exception occured");
             }
         }
 
         //because of the way the results return work, it makes more sense to keep the result format for all and just have this be a list instead of a single return
-        public async Task<Result<List<wbm_common.DataObjects.CustomerAddress.dbRow>>> CustomerAddressList_SearchByID(int ID)
+        public async Task<Result<List<wbm_common.DataObjects.CustomerAddress.dbRowExtended>>> CustomerAddress_SearchByID(int ID)
         {
             try
             {
-                wbm_common.DataObjects.CustomerAddress.dbRow CustomerAddress = await _dbContext.CustomerAddress.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.ID == ID);
+                List<wbm_common.DataObjects.CustomerAddress.dbRowExtended> CustomerAddressDb = await (from CustomerAddress in _dbContext.CustomerAddress.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && x.ID == ID)
+                                                                                                      join site in _dbContext.Site.AsNoTracking()
+                                                                                                          on CustomerAddress.SiteID equals site.ID into sitePR
+                                                                                                      from SPR in sitePR.DefaultIfEmpty()
+                                                                                                      join company in _dbContext.Company.AsNoTracking()
+                                                                                                  on CustomerAddress.CompanyID equals company.ID into companyPR
+                                                                                                      from CPR in companyPR.DefaultIfEmpty()
+                                                                                                      join Owner in _dbContext.Owner.AsNoTracking()
+                                                                                                  on CustomerAddress.OwnerID equals Owner.ID into OwnerPR
+                                                                                                      from OPR in OwnerPR.DefaultIfEmpty()
+                                                                                                      join SecurityUser in _dbContext.Security_User.AsNoTracking()
+                                                                                          on CustomerAddress.CreatedUserID equals SecurityUser.ID into SecurityUserPR
+                                                                                                      from SU in SecurityUserPR.DefaultIfEmpty()
 
-                if (CustomerAddress == null)
-                    return Result.Success<List<wbm_common.DataObjects.CustomerAddress.dbRow>>(new List<wbm_common.DataObjects.CustomerAddress.dbRow>());
+                                                                                                      select new CustomerAddress.dbRowExtended
+                                                                                                      {
+                                                                                                          ID = CustomerAddress.ID,
+                                                                                                          CompanyID = CustomerAddress.CompanyID,
+                                                                                                          OwnerID = CustomerAddress.OwnerID,
+                                                                                                          SiteID = CustomerAddress.SiteID,
+                                                                                                          CustomerID = CustomerAddress.CustomerID,
+                                                                                                          Name = CustomerAddress.Name,
+                                                                                                          AddressLine1 = CustomerAddress.AddressLine1,
+                                                                                                          AddressLine2 = CustomerAddress.AddressLine2,
+                                                                                                          AddressLine3 = CustomerAddress.AddressLine3,
+                                                                                                          AddressLine4 = CustomerAddress.AddressLine4,
+                                                                                                          Suburb = CustomerAddress.Suburb,
+                                                                                                          State = CustomerAddress.State,
+                                                                                                          PostCode = CustomerAddress.PostCode,
+                                                                                                          PalletHireDelayDays = CustomerAddress.PalletHireDelayDays,
+                                                                                                          InvoiceEnclosed = CustomerAddress.InvoiceEnclosed,
+                                                                                                          Paperless_KeyID = CustomerAddress.Paperless_KeyID,
+                                                                                                          DeletedFlag = CustomerAddress.DeletedFlag,
+                                                                                                          CreatedDateTime = CustomerAddress.CreatedDateTime,
+                                                                                                          CreatedMethod = CustomerAddress.CreatedMethod,
+                                                                                                          CreatedUserID = CustomerAddress.CreatedUserID,
+                                                                                                          LastAmendedDateTime = CustomerAddress.LastAmendedDateTime,
+                                                                                                          LastAmendedMethod = CustomerAddress.LastAmendedMethod,
+                                                                                                          LastAmendedUserID = CustomerAddress.LastAmendedUserID,
+                                                                                                          Connote_RateCollectionRateChargeCode = CustomerAddress.Connote_RateCollectionRateChargeCode,
+
+                                                                                                          Site_PublicID = SPR.PublicID,
+                                                                                                          Company_ShortName = CPR.ShortName,
+                                                                                                          Owner_Name = OPR.Name,
+                                                                                                          Created_UserPublicID = SU.PublicID
+                                                                                                      }).ToListAsync();
+
+                if (CustomerAddressDb == null)
+                    return Result.Success<List<wbm_common.DataObjects.CustomerAddress.dbRowExtended>>(new List<wbm_common.DataObjects.CustomerAddress.dbRowExtended>());
                 else
-                    return Result.Success<List<wbm_common.DataObjects.CustomerAddress.dbRow>>(new List<wbm_common.DataObjects.CustomerAddress.dbRow> { CustomerAddress });
+                    return Result.Success<List<wbm_common.DataObjects.CustomerAddress.dbRowExtended>>(CustomerAddressDb);
             }
             catch (Exception ex)
             {
-                logger.Error("CustomerAddress_SearchByID - " + ID.ToString() + ": " + ex);
-                return Result.Exception<List<wbm_common.DataObjects.CustomerAddress.dbRow>>("Internal Exception occured");
+                logger.Error("CustomerAddress_ListByID - " + ID.ToString() + ": " + ex);
+                return Result.Exception<List<wbm_common.DataObjects.CustomerAddress.dbRowExtended>>("Internal Exception occured");
+            }
+        }
+        public async Task<Result<List<wbm_common.DataObjects.CustomerAddress.dbRowExtended>>> CustomerAddress_ListByOwnerCustomerID(int OwnerID, string CustomerID)
+        {
+            try
+            {
+                List<wbm_common.DataObjects.CustomerAddress.dbRowExtended> CustomerAddressDb = await (from CustomerAddress in _dbContext.CustomerAddress.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && (x.OwnerID == OwnerID || x.OwnerID == 0) && x.CustomerID == CustomerID)
+                                                                                                      join site in _dbContext.Site.AsNoTracking()
+                                                                                                          on CustomerAddress.SiteID equals site.ID into sitePR
+                                                                                                      from SPR in sitePR.DefaultIfEmpty()
+                                                                                                      join company in _dbContext.Company.AsNoTracking()
+                                                                                                  on CustomerAddress.CompanyID equals company.ID into companyPR
+                                                                                                      from CPR in companyPR.DefaultIfEmpty()
+                                                                                                      join Owner in _dbContext.Owner.AsNoTracking()
+                                                                                                  on CustomerAddress.OwnerID equals Owner.ID into OwnerPR
+                                                                                                      from OPR in OwnerPR.DefaultIfEmpty()
+                                                                                                      join SecurityUser in _dbContext.Security_User.AsNoTracking()
+                                                                                          on CustomerAddress.CreatedUserID equals SecurityUser.ID into SecurityUserPR
+                                                                                                      from SU in SecurityUserPR.DefaultIfEmpty()
+
+                                                                                                      select new CustomerAddress.dbRowExtended
+                                                                                                      {
+                                                                                                          ID = CustomerAddress.ID,
+                                                                                                          CompanyID = CustomerAddress.CompanyID,
+                                                                                                          OwnerID = CustomerAddress.OwnerID,
+                                                                                                          SiteID = CustomerAddress.SiteID,
+                                                                                                          CustomerID = CustomerAddress.CustomerID,
+                                                                                                          Name = CustomerAddress.Name,
+                                                                                                          AddressLine1 = CustomerAddress.AddressLine1,
+                                                                                                          AddressLine2 = CustomerAddress.AddressLine2,
+                                                                                                          AddressLine3 = CustomerAddress.AddressLine3,
+                                                                                                          AddressLine4 = CustomerAddress.AddressLine4,
+                                                                                                          Suburb = CustomerAddress.Suburb,
+                                                                                                          State = CustomerAddress.State,
+                                                                                                          PostCode = CustomerAddress.PostCode,
+                                                                                                          PalletHireDelayDays = CustomerAddress.PalletHireDelayDays,
+                                                                                                          InvoiceEnclosed = CustomerAddress.InvoiceEnclosed,
+                                                                                                          Paperless_KeyID = CustomerAddress.Paperless_KeyID,
+                                                                                                          DeletedFlag = CustomerAddress.DeletedFlag,
+                                                                                                          CreatedDateTime = CustomerAddress.CreatedDateTime,
+                                                                                                          CreatedMethod = CustomerAddress.CreatedMethod,
+                                                                                                          CreatedUserID = CustomerAddress.CreatedUserID,
+                                                                                                          LastAmendedDateTime = CustomerAddress.LastAmendedDateTime,
+                                                                                                          LastAmendedMethod = CustomerAddress.LastAmendedMethod,
+                                                                                                          LastAmendedUserID = CustomerAddress.LastAmendedUserID,
+                                                                                                          Connote_RateCollectionRateChargeCode = CustomerAddress.Connote_RateCollectionRateChargeCode,
+
+                                                                                                          Site_PublicID = SPR.PublicID,
+                                                                                                          Company_ShortName = CPR.ShortName,
+                                                                                                          Owner_Name = OPR.Name,
+                                                                                                          Created_UserPublicID = SU.PublicID
+                                                                                                      }).ToListAsync();
+
+                if (CustomerAddressDb == null)
+                    return Result.Success<List<wbm_common.DataObjects.CustomerAddress.dbRowExtended>>(new List<wbm_common.DataObjects.CustomerAddress.dbRowExtended>());
+                else
+                    return Result.Success<List<wbm_common.DataObjects.CustomerAddress.dbRowExtended>>(CustomerAddressDb);
+            }
+            catch (Exception ex)
+            {
+                logger.Error("CustomerAddress_ListByOwnerCustomerID - " + OwnerID.ToString() + ", " + CustomerID + ": " + ex);
+                return Result.Exception<List<wbm_common.DataObjects.CustomerAddress.dbRowExtended>>("Internal Exception occured");
             }
         }
 
@@ -103,12 +241,13 @@ namespace WBM_API.WBM_API_DB
         {
             try
             {
-                wbm_common.DataObjects.CustomerAddress.dbRow CustomerAddress = await _dbContext.CustomerAddress.AsNoTracking().FirstOrDefaultAsync(x => x.ID == ID);
+                wbm_common.DataObjects.CustomerAddress.dbRow CustomerAddressDb = await _dbContext.CustomerAddress.AsNoTracking()
+                                                                        .Where(x => x.ID == ID).FirstOrDefaultAsync();
 
-                if (CustomerAddress == null)
+                if (CustomerAddressDb == null)
                     return Result.Failure<wbm_common.DataObjects.CustomerAddress.dbRow>("CustomerAddress not found : " + ID.ToString());
                 else
-                    return Result.Success<wbm_common.DataObjects.CustomerAddress.dbRow>(CustomerAddress);
+                    return Result.Success<wbm_common.DataObjects.CustomerAddress.dbRow>(CustomerAddressDb);
             }
             catch (Exception ex)
             {
@@ -117,33 +256,79 @@ namespace WBM_API.WBM_API_DB
             }
         }
 
-        public async Task<Result<List<wbm_common.DataObjects.CustomerAddress.dbRow>>> CustomerAddress_List()
+        public async Task<Result<List<wbm_common.DataObjects.CustomerAddress.dbRowExtended>>> CustomerAddress_List()
         {
             try
             {
-                List<wbm_common.DataObjects.CustomerAddress.dbRow> CustomerAddresss = await _dbContext.CustomerAddress.AsNoTracking().Where(x => !x.DeletedFlag).ToListAsync();
+                List<wbm_common.DataObjects.CustomerAddress.dbRowExtended> CustomerAddresssDb = await (from CustomerAddress in _dbContext.CustomerAddress.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag)
+                                                                                                       join site in _dbContext.Site.AsNoTracking()
+                                                                                                           on CustomerAddress.SiteID equals site.ID into sitePR
+                                                                                                       from SPR in sitePR.DefaultIfEmpty()
+                                                                                                       join company in _dbContext.Company.AsNoTracking()
+                                                                                                   on CustomerAddress.CompanyID equals company.ID into companyPR
+                                                                                                       from CPR in companyPR.DefaultIfEmpty()
+                                                                                                       join Owner in _dbContext.Owner.AsNoTracking()
+                                                                                                   on CustomerAddress.OwnerID equals Owner.ID into OwnerPR
+                                                                                                       from OPR in OwnerPR.DefaultIfEmpty()
+                                                                                                       join SecurityUser in _dbContext.Security_User.AsNoTracking()
+                                                                                                   on CustomerAddress.CreatedUserID equals SecurityUser.ID into SecurityUserPR
+                                                                                                       from SU in SecurityUserPR.DefaultIfEmpty()
 
-                return Result.Success<List<wbm_common.DataObjects.CustomerAddress.dbRow>>(CustomerAddresss);
+                                                                                                       select new CustomerAddress.dbRowExtended
+                                                                                                       {
+                                                                                                           ID = CustomerAddress.ID,
+                                                                                                           CompanyID = CustomerAddress.CompanyID,
+                                                                                                           OwnerID = CustomerAddress.OwnerID,
+                                                                                                           SiteID = CustomerAddress.SiteID,
+                                                                                                           CustomerID = CustomerAddress.CustomerID,
+                                                                                                           Name = CustomerAddress.Name,
+                                                                                                           AddressLine1 = CustomerAddress.AddressLine1,
+                                                                                                           AddressLine2 = CustomerAddress.AddressLine2,
+                                                                                                           AddressLine3 = CustomerAddress.AddressLine3,
+                                                                                                           AddressLine4 = CustomerAddress.AddressLine4,
+                                                                                                           Suburb = CustomerAddress.Suburb,
+                                                                                                           State = CustomerAddress.State,
+                                                                                                           PostCode = CustomerAddress.PostCode,
+                                                                                                           PalletHireDelayDays = CustomerAddress.PalletHireDelayDays,
+                                                                                                           InvoiceEnclosed = CustomerAddress.InvoiceEnclosed,
+                                                                                                           Paperless_KeyID = CustomerAddress.Paperless_KeyID,
+                                                                                                           DeletedFlag = CustomerAddress.DeletedFlag,
+                                                                                                           CreatedDateTime = CustomerAddress.CreatedDateTime,
+                                                                                                           CreatedMethod = CustomerAddress.CreatedMethod,
+                                                                                                           CreatedUserID = CustomerAddress.CreatedUserID,
+                                                                                                           LastAmendedDateTime = CustomerAddress.LastAmendedDateTime,
+                                                                                                           LastAmendedMethod = CustomerAddress.LastAmendedMethod,
+                                                                                                           LastAmendedUserID = CustomerAddress.LastAmendedUserID,
+                                                                                                           Connote_RateCollectionRateChargeCode = CustomerAddress.Connote_RateCollectionRateChargeCode,
+
+                                                                                                           Site_PublicID = SPR.PublicID,
+                                                                                                           Company_ShortName = CPR.ShortName,
+                                                                                                           Owner_Name = OPR.Name,
+                                                                                                           Created_UserPublicID = SU.PublicID
+                                                                                                       }).ToListAsync();
+
+                return Result.Success<List<wbm_common.DataObjects.CustomerAddress.dbRowExtended>>(CustomerAddresssDb);
             }
             catch (Exception ex)
             {
                 logger.Error("CustomerAddress_List: " + ex);
 
-                return Result.Exception<List<wbm_common.DataObjects.CustomerAddress.dbRow>>("Internal Exception occured");
+                return Result.Exception<List<wbm_common.DataObjects.CustomerAddress.dbRowExtended>>("Internal Exception occured");
             }
         }
 
-        public async Task<Result<List<wbm_common.DataObjects.CustomerAddress.dbRow>>> CustomerAddress_ListBySql(string sqlString, List<SqlParameter> ListSqlParameter)
+        public async Task<Result<List<wbm_common.DataObjects.CustomerAddress.dbRowExtended>>> CustomerAddress_ListBySql(string sqlString, List<SqlParameter> ListSqlParameter)
         {
             try
             {
-                List<wbm_common.DataObjects.CustomerAddress.dbRow> CustomerAddresss = await _dbContext.CustomerAddress.FromSqlRaw(sqlString, ListSqlParameter.ToArray()).ToListAsync();
-                return Result.Success<List<wbm_common.DataObjects.CustomerAddress.dbRow>>(CustomerAddresss);
+                List<wbm_common.DataObjects.CustomerAddress.dbRowExtended> CustomerAddresss = await _dbContext.Database.SqlQueryRaw<wbm_common.DataObjects.CustomerAddress.dbRowExtended>(sqlString, ListSqlParameter.ToArray()).ToListAsync();
+                return Result.Success<List<wbm_common.DataObjects.CustomerAddress.dbRowExtended>>(CustomerAddresss);
             }
             catch (Exception ex)
             {
                 logger.Error("CustomerAddress_ListBySql -  " + sqlString + " : ex = " + ex);
-                return Result.Exception<List<wbm_common.DataObjects.CustomerAddress.dbRow>>("Internal Exception occured");
+                return Result.Exception<List<wbm_common.DataObjects.CustomerAddress.dbRowExtended>>("Internal Exception occured");
             }
         }
         #endregion
@@ -186,12 +371,52 @@ namespace WBM_API.WBM_API_DB
         {
             try
             {
-                wbm_common.DataObjects.CustomerAddressDefault.dbRow CustomerAddressDefault = await _dbContext.CustomerAddressDefault.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.PublicID == PublicID);
+                wbm_common.DataObjects.CustomerAddressDefault.dbRowExtended CustomerAddressDefaultdb = await (from CustomerAddressDefault in _dbContext.CustomerAddressDefault.AsNoTracking()
+                                        .Where(x => !x.DeletedFlag && x.PublicID == PublicID)
+                                                                                                              join site in _dbContext.Site.AsNoTracking()
+                                                                                                              on CustomerAddressDefault.SiteID equals site.ID into sitePR
+                                                                                                              from SPR in sitePR.DefaultIfEmpty()
+                                                                                                              join company in _dbContext.Company.AsNoTracking()
+                                                                                                              on CustomerAddressDefault.CompanyID equals company.ID into companyPR
+                                                                                                              from CPR in companyPR.DefaultIfEmpty()
+                                                                                                              join Owner in _dbContext.Owner.AsNoTracking()
+                                                                                                              on CustomerAddressDefault.OwnerID equals Owner.ID into OwnerPR
+                                                                                                              from OPR in OwnerPR.DefaultIfEmpty()
+                                                                                                              join SecurityUser in _dbContext.Security_User.AsNoTracking()
+                                                                                                              on CustomerAddressDefault.CreatedUserID equals SecurityUser.ID into SecurityUserPR
+                                                                                                              from SU in SecurityUserPR.DefaultIfEmpty()
 
-                if (CustomerAddressDefault == null)
+                                                                                                              select new CustomerAddressDefault.dbRowExtended
+                                                                                                              {
+                                                                                                                  ID = CustomerAddressDefault.ID,
+                                                                                                                  CompanyID = CustomerAddressDefault.CompanyID,
+                                                                                                                  OwnerID = CustomerAddressDefault.OwnerID,
+                                                                                                                  SiteID = CustomerAddressDefault.SiteID,
+                                                                                                                  Description = CustomerAddressDefault.Description,
+                                                                                                                  PublicID = CustomerAddressDefault.PublicID,
+                                                                                                                  PalletHireDelayDays = CustomerAddressDefault.PalletHireDelayDays,
+                                                                                                                  InvoiceEnclosed = CustomerAddressDefault.InvoiceEnclosed,
+                                                                                                                  SortOrder = CustomerAddressDefault.SortOrder,
+                                                                                                                  DeletedFlag = CustomerAddressDefault.DeletedFlag,
+                                                                                                                  CreatedDateTime = CustomerAddressDefault.CreatedDateTime,
+                                                                                                                  CreatedMethod = CustomerAddressDefault.CreatedMethod,
+                                                                                                                  CreatedUserID = CustomerAddressDefault.CreatedUserID,
+                                                                                                                  LastAmendedDateTime = CustomerAddressDefault.LastAmendedDateTime,
+                                                                                                                  LastAmendedMethod = CustomerAddressDefault.LastAmendedMethod,
+                                                                                                                  LastAmendedUserID = CustomerAddressDefault.LastAmendedUserID,
+
+                                                                                                                  Site_PublicID = SPR.PublicID,
+                                                                                                                  Company_ShortName = CPR.ShortName,
+                                                                                                                  Owner_Name = OPR.Name,
+                                                                                                                  Created_UserPublicID = SU.PublicID
+
+                                                                                                              }).FirstOrDefaultAsync();
+
+
+                if (CustomerAddressDefaultdb == null)
                     return Result.Failure<wbm_common.DataObjects.CustomerAddressDefault.dbRow>("CustomerAddressDefault not found : " + PublicID);
                 else
-                    return Result.Success<wbm_common.DataObjects.CustomerAddressDefault.dbRow>(CustomerAddressDefault);
+                    return Result.Success<wbm_common.DataObjects.CustomerAddressDefault.dbRow>(CustomerAddressDefaultdb);
 
             }
             catch (Exception ex)
@@ -202,21 +427,58 @@ namespace WBM_API.WBM_API_DB
         }
 
         // read and search are different because of the deleted flag
-        public async Task<Result<List<wbm_common.DataObjects.CustomerAddressDefault.dbRow>>> CustomerAddressDefault_SearchByID(int ID)
+        public async Task<Result<List<wbm_common.DataObjects.CustomerAddressDefault.dbRowExtended>>> CustomerAddressDefault_SearchByID(int ID)
         {
             try
             {
-                wbm_common.DataObjects.CustomerAddressDefault.dbRow CustomerAddressDefault = await _dbContext.CustomerAddressDefault.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.ID == ID);
+                List<wbm_common.DataObjects.CustomerAddressDefault.dbRowExtended> CustomerAddressDefaultDb = await (from CustomerAddressDefault in _dbContext.CustomerAddressDefault.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && x.ID == ID).Take(1)
+                                                                                                                join site in _dbContext.Site.AsNoTracking()
+                                                                                                                    on CustomerAddressDefault.SiteID equals site.ID into sitePR
+                                                                                                                    from SPR in sitePR.DefaultIfEmpty()
+                                                                                                                    join company in _dbContext.Company.AsNoTracking()
+                                                                                                                    on CustomerAddressDefault.CompanyID equals company.ID into companyPR
+                                                                                                                    from CPR in companyPR.DefaultIfEmpty()
+                                                                                                                    join Owner in _dbContext.Owner.AsNoTracking()
+                                                                                                                    on CustomerAddressDefault.OwnerID equals Owner.ID into OwnerPR
+                                                                                                                    from OPR in OwnerPR.DefaultIfEmpty()
+                                                                                                                    join SecurityUser in _dbContext.Security_User.AsNoTracking()
+                                                                                                                    on CustomerAddressDefault.CreatedUserID equals SecurityUser.ID into SecurityUserPR
+                                                                                                                    from SU in SecurityUserPR.DefaultIfEmpty()
+                                                                                                                    select new CustomerAddressDefault.dbRowExtended
+                                                                                                                {
+                                                                                                                    ID = CustomerAddressDefault.ID,
+                                                                                                                    CompanyID = CustomerAddressDefault.CompanyID,
+                                                                                                                    OwnerID = CustomerAddressDefault.OwnerID,
+                                                                                                                    SiteID = CustomerAddressDefault.SiteID,
+                                                                                                                    Description = CustomerAddressDefault.Description,
+                                                                                                                    PublicID = CustomerAddressDefault.PublicID,
+                                                                                                                    PalletHireDelayDays = CustomerAddressDefault.PalletHireDelayDays,
+                                                                                                                    InvoiceEnclosed = CustomerAddressDefault.InvoiceEnclosed,
+                                                                                                                    SortOrder = CustomerAddressDefault.SortOrder,
+                                                                                                                    DeletedFlag = CustomerAddressDefault.DeletedFlag,
+                                                                                                                    CreatedDateTime = CustomerAddressDefault.CreatedDateTime,
+                                                                                                                    CreatedMethod = CustomerAddressDefault.CreatedMethod,
+                                                                                                                    CreatedUserID = CustomerAddressDefault.CreatedUserID,
+                                                                                                                    LastAmendedDateTime = CustomerAddressDefault.LastAmendedDateTime,
+                                                                                                                    LastAmendedMethod = CustomerAddressDefault.LastAmendedMethod,
+                                                                                                                    LastAmendedUserID = CustomerAddressDefault.LastAmendedUserID,
 
-                if (CustomerAddressDefault == null)
-                    return Result.Success<List<wbm_common.DataObjects.CustomerAddressDefault.dbRow>>(new List<wbm_common.DataObjects.CustomerAddressDefault.dbRow>());
+                                                                                                                    Site_PublicID = SPR.PublicID,
+                                                                                                                    Company_ShortName = CPR.ShortName,
+                                                                                                                    Owner_Name = OPR.Name,
+                                                                                                                    Created_UserPublicID = SU.PublicID
+                                                                                                                }).ToListAsync();
+
+                if (CustomerAddressDefaultDb == null)
+                    return Result.Success<List<wbm_common.DataObjects.CustomerAddressDefault.dbRowExtended>>(new List<wbm_common.DataObjects.CustomerAddressDefault.dbRowExtended>());
                 else
-                    return Result.Success<List<wbm_common.DataObjects.CustomerAddressDefault.dbRow>>(new List<wbm_common.DataObjects.CustomerAddressDefault.dbRow> { CustomerAddressDefault });
+                    return Result.Success<List<wbm_common.DataObjects.CustomerAddressDefault.dbRowExtended>>(CustomerAddressDefaultDb);
             }
             catch (Exception ex)
             {
                 logger.Error("CustomerAddressDefault_SearchByID - " + ID.ToString() + ": " + ex);
-                return Result.Exception<List<wbm_common.DataObjects.CustomerAddressDefault.dbRow>>("Internal Exception occured");
+                return Result.Exception<List<wbm_common.DataObjects.CustomerAddressDefault.dbRowExtended>>("Internal Exception occured");
             }
         }
 
@@ -225,12 +487,13 @@ namespace WBM_API.WBM_API_DB
         {
             try
             {
-                wbm_common.DataObjects.CustomerAddressDefault.dbRow CustomerAddressDefault = await _dbContext.CustomerAddressDefault.AsNoTracking().FirstOrDefaultAsync(x => x.ID == ID);
+                wbm_common.DataObjects.CustomerAddressDefault.dbRow CustomerAddressDefaultDb = await _dbContext.CustomerAddressDefault.AsNoTracking()
+                                                                        .Where(x => x.ID == ID).FirstOrDefaultAsync();
 
-                if (CustomerAddressDefault == null)
+                if (CustomerAddressDefaultDb == null)
                     return Result.Failure<wbm_common.DataObjects.CustomerAddressDefault.dbRow>("CustomerAddressDefault not found : " + ID.ToString());
                 else
-                    return Result.Success<wbm_common.DataObjects.CustomerAddressDefault.dbRow>(CustomerAddressDefault);
+                    return Result.Success<wbm_common.DataObjects.CustomerAddressDefault.dbRow>(CustomerAddressDefaultDb);
             }
             catch (Exception ex)
             {
@@ -239,55 +502,131 @@ namespace WBM_API.WBM_API_DB
             }
         }
 
-        public async Task<Result<List<wbm_common.DataObjects.CustomerAddressDefault.dbRow>>> CustomerAddressDefault_List()
+        public async Task<Result<List<wbm_common.DataObjects.CustomerAddressDefault.dbRowExtended>>> CustomerAddressDefault_List()
         {
             try
             {
-                List<wbm_common.DataObjects.CustomerAddressDefault.dbRow> CustomerAddressDefaults = await _dbContext.CustomerAddressDefault.AsNoTracking().Where(x => !x.DeletedFlag).ToListAsync();
+                List<wbm_common.DataObjects.CustomerAddressDefault.dbRowExtended> CustomerAddressDefaults = await (from CustomerAddressDefault in _dbContext.CustomerAddressDefault.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag)
+                                                                                                                   join site in _dbContext.Site.AsNoTracking()
+                                                                                                                       on CustomerAddressDefault.SiteID equals site.ID into sitePR
+                                                                                                                   from SPR in sitePR.DefaultIfEmpty()
+                                                                                                                   join company in _dbContext.Company.AsNoTracking()
+                                                                                                                   on CustomerAddressDefault.CompanyID equals company.ID into companyPR
+                                                                                                                   from CPR in companyPR.DefaultIfEmpty()
+                                                                                                                   join Owner in _dbContext.Owner.AsNoTracking()
+                                                                                                                   on CustomerAddressDefault.OwnerID equals Owner.ID into OwnerPR
+                                                                                                                   from OPR in OwnerPR.DefaultIfEmpty()
+                                                                                                                   join SecurityUser in _dbContext.Security_User.AsNoTracking()
+                                                                                          on CustomerAddressDefault.CreatedUserID equals SecurityUser.ID into SecurityUserPR
+                                                                                                                   from SU in SecurityUserPR.DefaultIfEmpty()
 
-                return Result.Success<List<wbm_common.DataObjects.CustomerAddressDefault.dbRow>>(CustomerAddressDefaults);
+                                                                                                                   select new CustomerAddressDefault.dbRowExtended
+                                                                                                                   {
+                                                                                                                       ID = CustomerAddressDefault.ID,
+                                                                                                                       CompanyID = CustomerAddressDefault.CompanyID,
+                                                                                                                       OwnerID = CustomerAddressDefault.OwnerID,
+                                                                                                                       SiteID = CustomerAddressDefault.SiteID,
+                                                                                                                       Description = CustomerAddressDefault.Description,
+                                                                                                                       PublicID = CustomerAddressDefault.PublicID,
+                                                                                                                       PalletHireDelayDays = CustomerAddressDefault.PalletHireDelayDays,
+                                                                                                                       InvoiceEnclosed = CustomerAddressDefault.InvoiceEnclosed,
+                                                                                                                       SortOrder = CustomerAddressDefault.SortOrder,
+                                                                                                                       DeletedFlag = CustomerAddressDefault.DeletedFlag,
+                                                                                                                       CreatedDateTime = CustomerAddressDefault.CreatedDateTime,
+                                                                                                                       CreatedMethod = CustomerAddressDefault.CreatedMethod,
+                                                                                                                       CreatedUserID = CustomerAddressDefault.CreatedUserID,
+                                                                                                                       LastAmendedDateTime = CustomerAddressDefault.LastAmendedDateTime,
+                                                                                                                       LastAmendedMethod = CustomerAddressDefault.LastAmendedMethod,
+                                                                                                                       LastAmendedUserID = CustomerAddressDefault.LastAmendedUserID,
+
+                                                                                                                       Site_PublicID = SPR.PublicID,
+                                                                                                                       Company_ShortName = CPR.ShortName,
+                                                                                                                       Owner_Name = OPR.Name,
+                                                                                                                       Created_UserPublicID = SU.PublicID
+                                                                                                                   }).Where(x => !x.DeletedFlag).ToListAsync();
+
+                return Result.Success<List<wbm_common.DataObjects.CustomerAddressDefault.dbRowExtended>>(CustomerAddressDefaults);
             }
             catch (Exception ex)
             {
                 logger.Error("CustomerAddressDefault_List: " + ex);
 
-                return Result.Exception<List<wbm_common.DataObjects.CustomerAddressDefault.dbRow>>("Internal Exception occured");
+                return Result.Exception<List<wbm_common.DataObjects.CustomerAddressDefault.dbRowExtended>>("Internal Exception occured");
             }
         }
 
-        public async Task<Result<List<wbm_common.DataObjects.CustomerAddressDefault.dbRow>>> CustomerAddressDefault_ListByListIDs(List<int> IDs)
+        public async Task<Result<List<wbm_common.DataObjects.CustomerAddressDefault.dbRowExtended>>> CustomerAddressDefault_ListByListIDs(List<int> IDs)
         {
             if (IDs == null || IDs.Count == 0)
             {
                 logger.Error("CustomerAddressDefault_ListByListIDs was null or blank ");
-                return Result.Failure<List<wbm_common.DataObjects.CustomerAddressDefault.dbRow>>("IDs list is null or empty");
+                return Result.Failure<List<wbm_common.DataObjects.CustomerAddressDefault.dbRowExtended>>("IDs list is null or empty");
             }
             else
             {
                 try
                 {
-                    List<wbm_common.DataObjects.CustomerAddressDefault.dbRow> CustomerAddressDefaults = await _dbContext.CustomerAddressDefault.AsNoTracking().Where(x => !x.DeletedFlag && IDs.Contains(x.ID)).ToListAsync();
-                    return Result.Success<List<wbm_common.DataObjects.CustomerAddressDefault.dbRow>>(CustomerAddressDefaults);
+                    List<wbm_common.DataObjects.CustomerAddressDefault.dbRowExtended> CustomerAddressDefaults = await (from CustomerAddressDefault in _dbContext.CustomerAddressDefault.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && IDs.Contains(x.ID))
+                                                                                                                       join site in _dbContext.Site.AsNoTracking()
+                                                                                                                           on CustomerAddressDefault.SiteID equals site.ID into sitePR
+                                                                                                                       from SPR in sitePR.DefaultIfEmpty()
+                                                                                                                       join company in _dbContext.Company.AsNoTracking()
+                                                                                                                       on CustomerAddressDefault.CompanyID equals company.ID into companyPR
+                                                                                                                       from CPR in companyPR.DefaultIfEmpty()
+                                                                                                                       join Owner in _dbContext.Owner.AsNoTracking()
+                                                                                                                       on CustomerAddressDefault.OwnerID equals Owner.ID into OwnerPR
+                                                                                                                       from OPR in OwnerPR.DefaultIfEmpty()
+                                                                                                                       join SecurityUser in _dbContext.Security_User.AsNoTracking()
+                                                                                                                       on CustomerAddressDefault.CreatedUserID equals SecurityUser.ID into SecurityUserPR
+                                                                                                                       from SU in SecurityUserPR.DefaultIfEmpty()
+
+                                                                                                                       select new CustomerAddressDefault.dbRowExtended
+                                                                                                                       {
+                                                                                                                           ID = CustomerAddressDefault.ID,
+                                                                                                                           CompanyID = CustomerAddressDefault.CompanyID,
+                                                                                                                           OwnerID = CustomerAddressDefault.OwnerID,
+                                                                                                                           SiteID = CustomerAddressDefault.SiteID,
+                                                                                                                           Description = CustomerAddressDefault.Description,
+                                                                                                                           PublicID = CustomerAddressDefault.PublicID,
+                                                                                                                           PalletHireDelayDays = CustomerAddressDefault.PalletHireDelayDays,
+                                                                                                                           InvoiceEnclosed = CustomerAddressDefault.InvoiceEnclosed,
+                                                                                                                           SortOrder = CustomerAddressDefault.SortOrder,
+                                                                                                                           DeletedFlag = CustomerAddressDefault.DeletedFlag,
+                                                                                                                           CreatedDateTime = CustomerAddressDefault.CreatedDateTime,
+                                                                                                                           CreatedMethod = CustomerAddressDefault.CreatedMethod,
+                                                                                                                           CreatedUserID = CustomerAddressDefault.CreatedUserID,
+                                                                                                                           LastAmendedDateTime = CustomerAddressDefault.LastAmendedDateTime,
+                                                                                                                           LastAmendedMethod = CustomerAddressDefault.LastAmendedMethod,
+                                                                                                                           LastAmendedUserID = CustomerAddressDefault.LastAmendedUserID,
+
+                                                                                                                           Site_PublicID = SPR.PublicID,
+                                                                                                                           Company_ShortName = CPR.ShortName,
+                                                                                                                           Owner_Name = OPR.Name,
+                                                                                                                           Created_UserPublicID = SU.PublicID
+                                                                                                                       }).ToListAsync();
+                    return Result.Success<List<wbm_common.DataObjects.CustomerAddressDefault.dbRowExtended>>(CustomerAddressDefaults);
                 }
                 catch (Exception ex)
                 {
                     logger.Error("CustomerAddressDefault_ListByListIDs: " + ex);
-                    return Result.Exception<List<wbm_common.DataObjects.CustomerAddressDefault.dbRow>>("Internal Exception occured");
+                    return Result.Exception<List<wbm_common.DataObjects.CustomerAddressDefault.dbRowExtended>>("Internal Exception occured");
                 }
             }
         }
 
-        public async Task<Result<List<wbm_common.DataObjects.CustomerAddressDefault.dbRow>>> CustomerAddressDefault_ListBySql(string sqlString, List<SqlParameter> ListSqlParameter)
+        public async Task<Result<List<wbm_common.DataObjects.CustomerAddressDefault.dbRowExtended>>> CustomerAddressDefault_ListBySql(string sqlString, List<SqlParameter> ListSqlParameter)
         {
             try
             {
-                List<wbm_common.DataObjects.CustomerAddressDefault.dbRow> CustomerAddressDefaults = await _dbContext.CustomerAddressDefault.FromSqlRaw(sqlString, ListSqlParameter.ToArray()).ToListAsync();
-                return Result.Success<List<wbm_common.DataObjects.CustomerAddressDefault.dbRow>>(CustomerAddressDefaults);
+                List<wbm_common.DataObjects.CustomerAddressDefault.dbRowExtended> CustomerAddressDefaults = await _dbContext.Database.SqlQueryRaw<wbm_common.DataObjects.CustomerAddressDefault.dbRowExtended>(sqlString, ListSqlParameter.ToArray()).ToListAsync();
+                return Result.Success<List<wbm_common.DataObjects.CustomerAddressDefault.dbRowExtended>>(CustomerAddressDefaults);
             }
             catch (Exception ex)
             {
                 logger.Error("CustomerAddressDefault_ListBySql -  " + sqlString + " : ex = " + ex);
-                return Result.Exception<List<wbm_common.DataObjects.CustomerAddressDefault.dbRow>>("Internal Exception occured");
+                return Result.Exception<List<wbm_common.DataObjects.CustomerAddressDefault.dbRowExtended>>("Internal Exception occured");
             }
         }
         #endregion

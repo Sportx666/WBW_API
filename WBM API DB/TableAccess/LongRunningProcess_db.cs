@@ -1,6 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 
 namespace WBM_API.WBM_API_DB
 {
@@ -80,28 +80,8 @@ namespace WBM_API.WBM_API_DB
             }
         }
 
-        // read and search are different because of the deleted flag
-        public async Task<Result<wbm_common.DataObjects.LongRunProcessStatusDescription.dbRow>> LongRunProcessStatusDescription_SearchByID(int ID)
-        {
-            try
-            {
-                wbm_common.DataObjects.LongRunProcessStatusDescription.dbRow LongRunProcessStatusDescription = await _dbContext.LongRunProcessStatusDescription.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.ID == ID);
-
-                if (LongRunProcessStatusDescription == null)
-                    return Result.Failure<wbm_common.DataObjects.LongRunProcessStatusDescription.dbRow>("LongRunProcessStatusDescription not found : " + ID.ToString());
-                else
-                    return Result.Success<wbm_common.DataObjects.LongRunProcessStatusDescription.dbRow>(LongRunProcessStatusDescription);
-
-            }
-            catch (Exception ex)
-            {
-                logger.Error("LongRunProcessStatusDescription_SearchByPublicID - " + ID.ToString() + ": " + ex);
-                return Result.Exception<wbm_common.DataObjects.LongRunProcessStatusDescription.dbRow>("Internal Exception occured");
-            }
-        }
-
         //because of the way the results return work, it makes more sense to keep the result format for all and just have this be a list instead of a single return
-        public async Task<Result<List<wbm_common.DataObjects.LongRunProcessStatusDescription.dbRow>>> LongRunProcessStatusDescriptionList_SearchByID(int ID)
+        public async Task<Result<List<wbm_common.DataObjects.LongRunProcessStatusDescription.dbRow>>> LongRunProcessStatusDescription_ListByID(int ID)
         {
             try
             {
@@ -114,7 +94,7 @@ namespace WBM_API.WBM_API_DB
             }
             catch (Exception ex)
             {
-                logger.Error("LongRunProcessStatusDescription_SearchByID - " + ID.ToString() + ": " + ex);
+                logger.Error("LongRunProcessStatusDescription_ListByID - " + ID.ToString() + ": " + ex);
                 return Result.Exception<List<wbm_common.DataObjects.LongRunProcessStatusDescription.dbRow>>("Internal Exception occured");
             }
         }

@@ -2,8 +2,9 @@
 using NLog;
 using NLog.Web;
 using System.Data.SqlTypes;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
+using wbm_common.DataObjects;
 
 namespace WBM_API.Helpers
 {
@@ -24,7 +25,7 @@ namespace WBM_API.Helpers
                     }
                 case wbm_common.DataObjects.LongRunProcessStatusDescription.Search.SearchModeType.SingleID:
                     {
-                        rc = await _WBMDB.LongRunProcessStatusDescriptionList_SearchByID(_LongRunProcessStatusDescriptionSearchData.ID);
+                        rc = await _WBMDB.LongRunProcessStatusDescription_ListByID(_LongRunProcessStatusDescriptionSearchData.ID);
                         break;
                     }
                 case wbm_common.DataObjects.LongRunProcessStatusDescription.Search.SearchModeType.AllRecords:
@@ -90,6 +91,13 @@ namespace WBM_API.Helpers
 
             public Boolean Save()
             {
+                List<string> fieldErrors = DbRowValidator.requiredFieldErrors(LongRunProcessStatusDescription.MyRequiredList, saveRow, _WBMDB);
+                if (fieldErrors.Count() > 0)
+                {
+                    ErrorMessage = string.Join(", ", fieldErrors);
+                    ReturnState = 400;
+                    return false;
+                }
                 if (CheckExist())
                 {
                     if (Exists)
@@ -178,37 +186,6 @@ namespace WBM_API.Helpers
                     IsNew = true;
                 #endregion
 
-                #region Check that PublicID is unique
-                if (Exists && saveRow.ID == existRow.ID)
-                {
-                    // Don't need to check as we are the same
-                }
-                else
-                {
-                    Result<wbm_common.DataObjects.LongRunProcessStatusDescription.dbRow> rcexist = _WBMDB.LongRunProcessStatusDescription_SearchByID(saveRow.ID).GetAwaiter().GetResult();
-
-                    if (rcexist.IsException)
-                    {
-                        SavedSuccessfully = false;
-                        ReturnState = 500;
-                    }
-                    else if (rcexist.IsFailure)
-                    {
-                        // Not found, so ok to continue
-                    }
-                    else
-                    {
-                        // We have at least one row... :(
-                        ErrorMessage = "ID already in use, must be unique - " + saveRow.ID.ToString();
-                        logger.Error("LongRunProcessStatusDescriptionSave ID " + saveRow.ID.ToString() + " already exists");
-                        ReturnState = 400;
-                        SavedSuccessfully = false;
-                        return false;
-                    }
-                }
-
-                #endregion
-
                 return true;
             }
 
@@ -281,12 +258,10 @@ namespace WBM_API.Helpers
                     {
                         changeHeaderRow.ID = chResult.Value;
 
-                        int ChangeHeaderTableID = (int)wbm_common.DataObjects.ChangeTracking.ChangeHeaderTableID.LongRunProcessStatusDescription;
-
                         foreach (wbm_common.DataObjects.ChangeDetail.dbRow cdRow in ct.ListChangeDetail)
                         {
                             cdRow.ChangeHeaderID = changeHeaderRow.ID;
-                            cdRow.ChangeHeaderTableID = ChangeHeaderTableID;
+                            cdRow.ChangeHeaderTableID = changeHeaderRow.ChangeHeaderTableID;
                             cdRow.RecordID = changeHeaderRow.RecordID;
 
                             Result<int> cdResult = _WBMDB.ChangeDetail_Insert((wbm_common.DataObjects.ChangeDetail.dbRow)cdRow).GetAwaiter().GetResult();

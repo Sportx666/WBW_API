@@ -2,18 +2,19 @@
 using NLog;
 using NLog.Web;
 using System.Data.SqlTypes;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
+using wbm_common.DataObjects;
 
 namespace WBM_API.Helpers
 {
     public class ContainerUnLoadTypeHelper
     {
         private static Logger logger = LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
-        public static async Task<Result<List<wbm_common.DataObjects.ContainerUnLoadType.dbRow>>> ExecuteSearch(wbm_common.DataObjects.ContainerUnLoadType.Search _ContainerUnLoadTypeSearchData, WBMDatabase _WBMDB, IHubCallerClients Clients = null, Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> inCallBackStatusFunction = null, wbm_common.DataObjects.LongRunProcessHeader.dbRow longRunProcessHeader = null)
+        public static async Task<Result<List<wbm_common.DataObjects.ContainerUnLoadType.dbRowExtended>>> ExecuteSearch(wbm_common.DataObjects.ContainerUnLoadType.Search _ContainerUnLoadTypeSearchData, WBMDatabase _WBMDB, IHubCallerClients Clients = null, Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> inCallBackStatusFunction = null, wbm_common.DataObjects.LongRunProcessHeader.dbRow longRunProcessHeader = null)
         {
-            Result<List<wbm_common.DataObjects.ContainerUnLoadType.dbRow>> rc;
-            List<wbm_common.DataObjects.ContainerUnLoadType.dbRow> ContainerUnLoadTypes;
+            Result<List<wbm_common.DataObjects.ContainerUnLoadType.dbRowExtended>> rc;
+            List<wbm_common.DataObjects.ContainerUnLoadType.dbRowExtended> ContainerUnLoadTypes;
             switch (_ContainerUnLoadTypeSearchData.SearchMode)
             {
                 case wbm_common.DataObjects.ContainerUnLoadType.Search.SearchModeType.Undefined:
@@ -35,7 +36,7 @@ namespace WBM_API.Helpers
                 default:
                     {
                         logger.Error("ContainerUnLoadTypeHelper.ExecuteSearch: ContainerUnLoadType Search Mode Type Error");
-                        rc = Result.Exception<List<wbm_common.DataObjects.ContainerUnLoadType.dbRow>>("Internal Exception occured");
+                        rc = Result.Exception<List<wbm_common.DataObjects.ContainerUnLoadType.dbRowExtended>>("Internal Exception occured");
                         break;
                     }
             }
@@ -90,6 +91,13 @@ namespace WBM_API.Helpers
 
             public Boolean Save()
             {
+                List<string> fieldErrors = DbRowValidator.requiredFieldErrors(ContainerUnLoadType.MyRequiredList, saveRow, _WBMDB);
+                if (fieldErrors.Count() > 0)
+                {
+                    ErrorMessage = string.Join(", ", fieldErrors);
+                    ReturnState = 400;
+                    return false;
+                }
                 if (CheckExist())
                 {
                     if (Exists)
@@ -185,7 +193,7 @@ namespace WBM_API.Helpers
                 }
                 else
                 {
-                    Result<wbm_common.DataObjects.ContainerUnLoadType.dbRow> rcexist = _WBMDB.ContainerUnLoadType_SearchByPublicID(saveRow.PublicID).GetAwaiter().GetResult();
+                    Result<wbm_common.DataObjects.ContainerUnLoadType.dbRowExtended> rcexist = _WBMDB.ContainerUnLoadType_SearchByPublicID(saveRow.PublicID).GetAwaiter().GetResult();
 
                     if (rcexist.IsException)
                     {
@@ -281,12 +289,10 @@ namespace WBM_API.Helpers
                     {
                         changeHeaderRow.ID = chResult.Value;
 
-                        int ChangeHeaderTableID = (int)wbm_common.DataObjects.ChangeTracking.ChangeHeaderTableID.ContainerUnLoadType;
-
                         foreach (wbm_common.DataObjects.ChangeDetail.dbRow cdRow in ct.ListChangeDetail)
                         {
                             cdRow.ChangeHeaderID = changeHeaderRow.ID;
-                            cdRow.ChangeHeaderTableID = ChangeHeaderTableID;
+                            cdRow.ChangeHeaderTableID = changeHeaderRow.ChangeHeaderTableID;
                             cdRow.RecordID = changeHeaderRow.RecordID;
 
                             Result<int> cdResult = _WBMDB.ChangeDetail_Insert((wbm_common.DataObjects.ChangeDetail.dbRow)cdRow).GetAwaiter().GetResult();

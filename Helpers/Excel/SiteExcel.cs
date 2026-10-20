@@ -3,7 +3,7 @@ using NLog;
 using NLog.Web;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
 using wbm_common.DataObjects;
 
@@ -19,7 +19,7 @@ namespace WBM_API.Helpers.Excel
 
         public List<wbm_common.DataObjects.SiteSystem.dbRow> sitesystems = null;
         public List<wbm_common.DataObjects.Security_User.dbRow> users = null;
-        public List<wbm_common.DataObjects.Site.dbRow> Sites = null;
+        public List<wbm_common.DataObjects.Site.dbRowExtended> Sites = null;
         public Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> CallBackStatusFunction { get; set; }
         private IHubCallerClients Clients;
         public wbm_common.DataObjects.LongRunProcessHeader.dbRow lrph { get; set; }
@@ -72,7 +72,7 @@ namespace WBM_API.Helpers.Excel
         private async Task<bool> GetData()
         {
 
-            Result<List<wbm_common.DataObjects.Site.dbRow>> rc = await SiteHelper.ExecuteSearch(SiteSearchData, _WBMDB);
+            Result<List<wbm_common.DataObjects.Site.dbRowExtended>> rc = await SiteHelper.ExecuteSearch(SiteSearchData, _WBMDB);
 
             if (rc.IsFailure)
             {

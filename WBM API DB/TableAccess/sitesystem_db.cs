@@ -1,6 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 
 namespace WBM_API.WBM_API_DB
 {
@@ -54,13 +54,31 @@ namespace WBM_API.WBM_API_DB
             }
             catch (Exception ex)
             {
-                logger.Error("SiteSystem_SearchByPublicID - " + ID.ToString() + ": " + ex);
+                logger.Error("SiteSystem_SearchByID - " + ID.ToString() + ": " + ex);
+                return Result.Exception<wbm_common.DataObjects.SiteSystem.dbRow>("Internal Exception occured");
+            }
+        }
+        public async Task<Result<wbm_common.DataObjects.SiteSystem.dbRow>> SiteSystem_SearchByPublicID(string PublicID)
+        {
+            try
+            {
+                wbm_common.DataObjects.SiteSystem.dbRow SiteSystem = await _dbContext.SiteSystem.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.PublicID == PublicID);
+
+                if (SiteSystem == null)
+                    return Result.Failure<wbm_common.DataObjects.SiteSystem.dbRow>("SiteSystem not found : " + PublicID);
+                else
+                    return Result.Success<wbm_common.DataObjects.SiteSystem.dbRow>(SiteSystem);
+
+            }
+            catch (Exception ex)
+            {
+                logger.Error("SiteSystem_SearchByPublicID - " + PublicID + ": " + ex);
                 return Result.Exception<wbm_common.DataObjects.SiteSystem.dbRow>("Internal Exception occured");
             }
         }
 
         //because of the way the results return work, it makes more sense to keep the result format for all and just have this be a list instead of a single return
-        public async Task<Result<List<wbm_common.DataObjects.SiteSystem.dbRow>>> SiteSystemList_SearchByID(int ID)
+        public async Task<Result<List<wbm_common.DataObjects.SiteSystem.dbRow>>> SiteSystem_ListByID(int ID)
         {
             try
             {
@@ -73,7 +91,7 @@ namespace WBM_API.WBM_API_DB
             }
             catch (Exception ex)
             {
-                logger.Error("SiteSystem_SearchByID - " + ID.ToString() + ": " + ex);
+                logger.Error("SiteSystem_ListByID - " + ID.ToString() + ": " + ex);
                 return Result.Exception<List<wbm_common.DataObjects.SiteSystem.dbRow>>("Internal Exception occured");
             }
         }

@@ -1,12 +1,18 @@
 ﻿using Newtonsoft.Json;
 using NLog;
 using NLog.Web;
+using wbm_common.NonDatabaseObjects;
+using WBM_API.WBM_API_DB;
 using static wbm_common.DataObjects.ChangeTracking;
 
 namespace WBM_API.Helpers
 {
     public class ChangeTracking
     {
+        public ChangeTracking()
+        {
+        }
+
         private static Logger logger = LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
 
         public static wbm_common.DataObjects.ChangeHeader.dbRow Create_ChangeHeader_dbRow(int ChangeHeaderTableID, int RecordID, DateTime ChangeTime, DateTime CreatedTime, string CreatedMethod, int userID)
@@ -44,9 +50,7 @@ namespace WBM_API.Helpers
                 if ((bool)deletedFlag != false)
                 {
                     if (ListChangeDetail == null)
-                    {
                         ListChangeDetail = new List<wbm_common.DataObjects.ChangeDetail.dbRow>();
-                    }
 
                     ListChangeDetail.Add(new wbm_common.DataObjects.ChangeDetail.dbRow
                     {
@@ -91,8 +95,8 @@ namespace WBM_API.Helpers
                             ListChangeDetail = new List<wbm_common.DataObjects.ChangeDetail.dbRow>();
                         }
 
-                        string oldValueAsString = oldValue.ToString();
-                        string newValueAsString = newValue.ToString();
+                        string oldValueAsString = oldValue == null ? null : oldValue.ToString();
+                        string newValueAsString = newValue == null ? null : newValue.ToString();
 
                         if (changeData.ExtraProcessing != ProcessingType.None)
                         {
@@ -152,6 +156,31 @@ namespace WBM_API.Helpers
 
             return rtnVal;
 
+        }
+
+        public string addInChangeHeaderDetail(WBMDatabase _WBMDB, wbm_common.DataObjects.ChangeHeader.dbRow changeHeaderRow, ChangeTracking ct)
+        {
+            // Insert ChangeHeader and detail entries
+            Result<int> chResult = _WBMDB.ChangeHeader_Insert(changeHeaderRow).GetAwaiter().GetResult();
+
+            if (!chResult.IsException)
+            {
+                changeHeaderRow.ID = chResult.Value;
+
+                foreach (wbm_common.DataObjects.ChangeDetail.dbRow cdRow in ct.ListChangeDetail)
+                {
+                    cdRow.ChangeHeaderID = changeHeaderRow.ID;
+                    cdRow.ChangeHeaderTableID = changeHeaderRow.ChangeHeaderTableID;
+                    cdRow.RecordID = changeHeaderRow.RecordID;
+
+                    Result<int> cdResult = _WBMDB.ChangeDetail_Insert((wbm_common.DataObjects.ChangeDetail.dbRow)cdRow).GetAwaiter().GetResult();
+                    if (cdResult.IsFailure)
+                        return cdResult.ErrorMessage;
+                }
+            }
+            else
+                return chResult.ErrorMessage;
+            return "";
         }
     }
 }

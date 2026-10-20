@@ -3,6 +3,7 @@ using Microsoft.Identity.Web;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using WBM_API.Controllers;
+using WBM_API.Paperless_DB;
 using WBM_API.WBM_API_DB;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,6 +11,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddDbContext<wbmdbcontext>
     (options => options.UseSqlServer(builder.Configuration.GetConnectionString("wbmdbConnection")));
+builder.Services.AddDbContext<paperlessdbcontext>
+    (options => options.UseSqlServer(builder.Configuration.GetConnectionString("paperlessdbConnection")));
 
 // --- Custom JWT Authentication ---
 builder.Services.AddAuthentication(options =>
@@ -61,6 +64,7 @@ builder.Services.AddLogging((builder) => builder.SetMinimumLevel(LogLevel.Trace)
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<WBMDatabase>();
+builder.Services.AddScoped<PaperlessDatabase>();
 builder.Services.AddSignalR();
 
 var app = builder.Build();

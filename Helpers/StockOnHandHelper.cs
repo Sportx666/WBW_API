@@ -2,18 +2,19 @@
 using NLog;
 using NLog.Web;
 using System.Data.SqlTypes;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
+using wbm_common.DataObjects;
 
 namespace WBM_API.Helpers
 {
     public class StockOnHandHelper
     {
         private static Logger logger = LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
-        public static async Task<Result<List<wbm_common.DataObjects.StockOnHand.dbRow>>> ExecuteSearch(wbm_common.DataObjects.StockOnHand.Search _StockOnHandSearchData, WBMDatabase _WBMDB, IHubCallerClients Clients = null, Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> inCallBackStatusFunction = null, wbm_common.DataObjects.LongRunProcessHeader.dbRow longRunProcessHeader = null)
+        public static async Task<Result<List<wbm_common.DataObjects.StockOnHand.dbRowExtended>>> ExecuteSearch(wbm_common.DataObjects.StockOnHand.Search _StockOnHandSearchData, WBMDatabase _WBMDB, IHubCallerClients Clients = null, Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> inCallBackStatusFunction = null, wbm_common.DataObjects.LongRunProcessHeader.dbRow longRunProcessHeader = null)
         {
-            Result<List<wbm_common.DataObjects.StockOnHand.dbRow>> rc;
-            List<wbm_common.DataObjects.StockOnHand.dbRow> StockOnHands;
+            Result<List<wbm_common.DataObjects.StockOnHand.dbRowExtended>> rc;
+            List<wbm_common.DataObjects.StockOnHand.dbRowExtended> StockOnHands;
             switch (_StockOnHandSearchData.SearchMode)
             {
                 case wbm_common.DataObjects.StockOnHand.Search.SearchModeType.Undefined:
@@ -24,7 +25,7 @@ namespace WBM_API.Helpers
                     }
                 case wbm_common.DataObjects.StockOnHand.Search.SearchModeType.SingleID:
                     {
-                        rc = await _WBMDB.StockOnHandList_SearchByID(_StockOnHandSearchData.ID);
+                        rc = await _WBMDB.StockOnHand_ListByID(_StockOnHandSearchData.ID);
                         break;
                     }
                 case wbm_common.DataObjects.StockOnHand.Search.SearchModeType.AllRecords:
@@ -37,7 +38,7 @@ namespace WBM_API.Helpers
                         if (_StockOnHandSearchData.ListOwnerID == null || _StockOnHandSearchData.ListOwnerID.Count() != 1)
                         {
                             logger.Error("StockOnHandHelper.ExecuteSearch: StockOnHand SingleOwner doesn't have single owner input");
-                            rc = Result.Exception<List<wbm_common.DataObjects.StockOnHand.dbRow>>("Internal Exception occured");
+                            rc = Result.Exception<List<wbm_common.DataObjects.StockOnHand.dbRowExtended>>("Internal Exception occured");
                             break;
                         }
                         rc = await _WBMDB.StockOnHand_ListBySingleOwnerID(_StockOnHandSearchData.ListOwnerID[0]);
@@ -48,7 +49,7 @@ namespace WBM_API.Helpers
                         if (_StockOnHandSearchData.ListSiteID == null || _StockOnHandSearchData.ListSiteID.Count() != 1)
                         {
                             logger.Error("StockOnHandHelper.ExecuteSearch: StockOnHand SingleSite doesn't have single site input");
-                            rc = Result.Exception<List<wbm_common.DataObjects.StockOnHand.dbRow>>("Internal Exception occured");
+                            rc = Result.Exception<List<wbm_common.DataObjects.StockOnHand.dbRowExtended>>("Internal Exception occured");
                             break;
                         }
                         rc = await _WBMDB.StockOnHand_ListBySingleSiteID(_StockOnHandSearchData.ListSiteID[0]);
@@ -57,7 +58,7 @@ namespace WBM_API.Helpers
                 default:
                     {
                         logger.Error("StockOnHandHelper.ExecuteSearch: StockOnHand Search Mode Type Error");
-                        rc = Result.Exception<List<wbm_common.DataObjects.StockOnHand.dbRow>>("Internal Exception occured");
+                        rc = Result.Exception<List<wbm_common.DataObjects.StockOnHand.dbRowExtended>>("Internal Exception occured");
                         break;
                     }
             }
@@ -112,6 +113,13 @@ namespace WBM_API.Helpers
 
             public Boolean Save()
             {
+                List<string> fieldErrors = DbRowValidator.requiredFieldErrors(StockOnHand.MyRequiredList, saveRow, _WBMDB);
+                if (fieldErrors.Count() > 0)
+                {
+                    ErrorMessage = string.Join(", ", fieldErrors);
+                    ReturnState = 400;
+                    return false;
+                }
                 if (CheckExist())
                 {
                     if (Exists)
@@ -200,37 +208,6 @@ namespace WBM_API.Helpers
                     IsNew = true;
                 #endregion
 
-                #region Check that PublicID is unique
-                if (Exists && saveRow.ID == existRow.ID)
-                {
-                    // Don't need to check as we are the same
-                }
-                else
-                {
-                    Result<wbm_common.DataObjects.StockOnHand.dbRow> rcexist = _WBMDB.StockOnHand_SearchByID(saveRow.ID).GetAwaiter().GetResult();
-
-                    if (rcexist.IsException)
-                    {
-                        SavedSuccessfully = false;
-                        ReturnState = 500;
-                    }
-                    else if (rcexist.IsFailure)
-                    {
-                        // Not found, so ok to continue
-                    }
-                    else
-                    {
-                        // We have at least one row... :(
-                        ErrorMessage = "ID already in use, must be unique - " + saveRow.ID;
-                        logger.Error("StockOnHandSave ID " + saveRow.ID + " already exists");
-                        ReturnState = 400;
-                        SavedSuccessfully = false;
-                        return false;
-                    }
-                }
-
-                #endregion
-
                 return true;
             }
 
@@ -303,12 +280,10 @@ namespace WBM_API.Helpers
                     {
                         changeHeaderRow.ID = chResult.Value;
 
-                        int ChangeHeaderTableID = (int)wbm_common.DataObjects.ChangeTracking.ChangeHeaderTableID.StockOnHand;
-
                         foreach (wbm_common.DataObjects.ChangeDetail.dbRow cdRow in ct.ListChangeDetail)
                         {
                             cdRow.ChangeHeaderID = changeHeaderRow.ID;
-                            cdRow.ChangeHeaderTableID = ChangeHeaderTableID;
+                            cdRow.ChangeHeaderTableID = changeHeaderRow.ChangeHeaderTableID;
                             cdRow.RecordID = changeHeaderRow.RecordID;
 
                             Result<int> cdResult = _WBMDB.ChangeDetail_Insert((wbm_common.DataObjects.ChangeDetail.dbRow)cdRow).GetAwaiter().GetResult();

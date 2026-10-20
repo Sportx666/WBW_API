@@ -3,7 +3,7 @@ using NLog;
 using NLog.Web;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
 using wbm_common.DataObjects;
 
@@ -17,10 +17,10 @@ namespace WBM_API.Helpers.Excel
 
         private readonly WBMDatabase _WBMDB;
 
-        public List<wbm_common.DataObjects.Company.dbRow> companies = null;
+        public List<wbm_common.DataObjects.Company.dbRowExtended> companies = null;
         public List<wbm_common.DataObjects.Security_User.dbRow> users = null;
         public List<wbm_common.DataObjects.InvoiceCycle.dbRow> invoicecycles = null;
-        public List<wbm_common.DataObjects.RateCollectionDefn.dbRow> ratecollectiondefns = null;
+        public List<wbm_common.DataObjects.RateCollectionDefn.dbRowExtended> ratecollectiondefns = null;
         public List<wbm_common.DataObjects.Owner.dbRow> Owners = null;
         public Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> CallBackStatusFunction { get; set; }
         private IHubCallerClients Clients;
@@ -104,7 +104,7 @@ namespace WBM_API.Helpers.Excel
 
             if (ListRateCollectionDefnID.Count > 0)
             {
-                Result<List<wbm_common.DataObjects.RateCollectionDefn.dbRow>> ratecollectiondefnsResults = _WBMDB.RateCollectionDefn_ListByListIDs(ListRateCollectionDefnID).GetAwaiter().GetResult();
+                Result<List<wbm_common.DataObjects.RateCollectionDefn.dbRowExtended>> ratecollectiondefnsResults = _WBMDB.RateCollectionDefn_ListByListIDs(ListRateCollectionDefnID).GetAwaiter().GetResult();
                 if (ratecollectiondefnsResults.IsFailure || ratecollectiondefnsResults.IsException)
                 {
                     ErrorMessage = ErrorCodes.GeneralDB.ToString();
@@ -115,7 +115,7 @@ namespace WBM_API.Helpers.Excel
 
             if (ListCompanyIDs.Count > 0)
             {
-                Result<List<wbm_common.DataObjects.Company.dbRow>> companiesResults = _WBMDB.Company_ListByListIDs(ListCompanyIDs).GetAwaiter().GetResult();
+                Result<List<wbm_common.DataObjects.Company.dbRowExtended>> companiesResults = _WBMDB.Company_ListByListIDs(ListCompanyIDs).GetAwaiter().GetResult();
                 if (companiesResults.IsFailure || companiesResults.IsException)
                 {
                     ErrorMessage = ErrorCodes.GeneralDB.ToString();
@@ -144,8 +144,8 @@ namespace WBM_API.Helpers.Excel
 
             #region header
             OwnerWS.View.FreezePanes(2, 1);
-            OwnerWS.Cells[1, 1, 1, 24].Style.Font.Bold = true;
-            OwnerWS.Cells[1, 1, 1, 24].Style.Border.Bottom.Style = ExcelBorderStyle.Thick;
+            OwnerWS.Cells[1, 1, 1, 27].Style.Font.Bold = true;
+            OwnerWS.Cells[1, 1, 1, 27].Style.Border.Bottom.Style = ExcelBorderStyle.Thick;
             OwnerWS.Column(1).Width = 12;
             OwnerWS.Column(2).Width = 25;
             OwnerWS.Column(3).Width = 15;
@@ -162,17 +162,25 @@ namespace WBM_API.Helpers.Excel
             OwnerWS.Column(13).Style.Numberformat.Format = "dd/mm/yy HH:mm";
             OwnerWS.Column(14).Width = 30;
             OwnerWS.Column(15).Width = 20;
-            OwnerWS.Column(16).Style.Numberformat.Format = "dd/mm/yy HH:mm";
             OwnerWS.Column(16).Width = 25;
             OwnerWS.Column(17).Width = 25;
+            OwnerWS.Column(17).Style.Numberformat.Format = "dd/mm/yy HH:mm";
             OwnerWS.Column(18).Width = 25;
+            OwnerWS.Column(19).Style.Numberformat.Format = "dd/mm/yy HH:mm";
             OwnerWS.Column(19).Width = 25;
             OwnerWS.Column(20).Style.Numberformat.Format = "dd/mm/yy HH:mm";
             OwnerWS.Column(20).Width = 25;
+            OwnerWS.Column(21).Style.Numberformat.Format = "dd/mm/yy HH:mm";
             OwnerWS.Column(21).Width = 25;
             OwnerWS.Column(22).Width = 25;
             OwnerWS.Column(23).Width = 25;
             OwnerWS.Column(24).Width = 25;
+            OwnerWS.Column(25).Style.Numberformat.Format = "dd/mm/yy HH:mm";
+            OwnerWS.Column(25).Width = 25;
+            OwnerWS.Column(26).Width = 25;
+            OwnerWS.Column(27).Width = 25;
+            OwnerWS.Column(28).Width = 25;
+            OwnerWS.Column(29).Width = 25;
 
             OwnerWS.Cells[1, 1].Value = "Company";
             OwnerWS.Cells[1, 2].Value = "Company Name";
@@ -189,15 +197,20 @@ namespace WBM_API.Helpers.Excel
             OwnerWS.Cells[1, 13].Value = "Date Of Change";
             OwnerWS.Cells[1, 14].Value = "New Rate Collection Defn";
             OwnerWS.Cells[1, 15].Value = "Invoice Cycle";
-            OwnerWS.Cells[1, 16].Value = "Created DateTime";
-            OwnerWS.Cells[1, 17].Value = "Created Method";
-            OwnerWS.Cells[1, 18].Value = "Created User";
-            OwnerWS.Cells[1, 19].Value = "Created User Name";
-            OwnerWS.Cells[1, 20].Value = "Last Amended DateTime";
-            OwnerWS.Cells[1, 21].Value = "Last Amended Method";
-            OwnerWS.Cells[1, 22].Value = "Last Amended User";
-            OwnerWS.Cells[1, 23].Value = "Last Amended Name";
-            OwnerWS.Cells[1, 24].Value = "Deleted Flag";
+            OwnerWS.Cells[1, 16].Value = "Current Processing Rule Defn ID";
+            OwnerWS.Cells[1, 17].Value = "Processing Rule Date Of Change";
+            OwnerWS.Cells[1, 18].Value = "New Processing Rule Defn ID";
+            OwnerWS.Cells[1, 19].Value = "Last Invoice Date";
+            OwnerWS.Cells[1, 20].Value = "Roll Back Invoice Date";
+            OwnerWS.Cells[1, 21].Value = "Created DateTime";
+            OwnerWS.Cells[1, 22].Value = "Created Method";
+            OwnerWS.Cells[1, 23].Value = "Created User";
+            OwnerWS.Cells[1, 24].Value = "Created User Name";
+            OwnerWS.Cells[1, 25].Value = "Last Amended DateTime";
+            OwnerWS.Cells[1, 26].Value = "Last Amended Method";
+            OwnerWS.Cells[1, 27].Value = "Last Amended User";
+            OwnerWS.Cells[1, 28].Value = "Last Amended Name";
+            OwnerWS.Cells[1, 29].Value = "Deleted Flag";
             #endregion
 
             #region processing
@@ -227,7 +240,8 @@ namespace WBM_API.Helpers.Excel
                 else
                     OwnerWS.Cells[rc, 12].Value = "CurrentRateCollectionDefnID: " + Owners[i].CurrentRateCollectionDefnID.ToString();
 
-                OwnerWS.Cells[rc, 13].Value = Owners[i].DateOfChange;
+                if (Owners[i].DateOfChange.HasValue)
+                    OwnerWS.Cells[rc, 13].Value = Owners[i].DateOfChange.Value.ToOADate();
 
                 if (ratecollectiondefns.Any(x => x.ID == Owners[i].NewRateCollectionDefnID))
                     OwnerWS.Cells[rc, 14].Value = ratecollectiondefns.FirstOrDefault(x => x.ID == Owners[i].NewRateCollectionDefnID).PublicID;
@@ -239,28 +253,38 @@ namespace WBM_API.Helpers.Excel
                 else
                     OwnerWS.Cells[rc, 15].Value = "InvoiceCycleID: " + Owners[i].InvoiceCycleID.ToString();
 
-                OwnerWS.Cells[rc, 16].Value = Owners[i].CreatedDateTime.ToOADate();
-                OwnerWS.Cells[rc, 17].Value = Owners[i].CreatedMethod;
+                OwnerWS.Cells[rc, 16].Value = Owners[i].CurrentProcessingRuleDefnID;
+                if (Owners[i].ProcessingRuleDateOfChange.HasValue)
+                    OwnerWS.Cells[rc, 17].Value = Owners[i].ProcessingRuleDateOfChange.Value.ToOADate();
+                OwnerWS.Cells[rc, 18].Value = Owners[i].NewProcessingRuleDefnID;
+
+                if (Owners[i].LastInvoiceDate.HasValue)
+                    OwnerWS.Cells[rc, 19].Value = Owners[i].LastInvoiceDate.Value.ToOADate();
+                if (Owners[i].RollBackInvoiceDate.HasValue)
+                    OwnerWS.Cells[rc, 20].Value = Owners[i].RollBackInvoiceDate.Value.ToOADate();
+
+                OwnerWS.Cells[rc, 21].Value = Owners[i].CreatedDateTime.ToOADate();
+                OwnerWS.Cells[rc, 22].Value = Owners[i].CreatedMethod;
                 if (users.Any(x => x.ID == Owners[i].CreatedUserID))
                 {
-                    OwnerWS.Cells[rc, 18].Value = users.FirstOrDefault(x => x.ID == Owners[i].CreatedUserID).Firstname;
-                    OwnerWS.Cells[rc, 19].Value = users.FirstOrDefault(x => x.ID == Owners[i].CreatedUserID).PublicID;
+                    OwnerWS.Cells[rc, 23].Value = users.FirstOrDefault(x => x.ID == Owners[i].CreatedUserID).Firstname;
+                    OwnerWS.Cells[rc, 24].Value = users.FirstOrDefault(x => x.ID == Owners[i].CreatedUserID).PublicID;
                 }
                 else
-                    OwnerWS.Cells[rc, 18].Value = "UserID: " + Owners[i].CreatedUserID.ToString();
+                    OwnerWS.Cells[rc, 23].Value = "UserID: " + Owners[i].CreatedUserID.ToString();
 
-                OwnerWS.Cells[rc, 20].Value = Owners[i].LastAmendedDateTime.ToOADate();
-                OwnerWS.Cells[rc, 21].Value = Owners[i].LastAmendedMethod;
+                OwnerWS.Cells[rc, 25].Value = Owners[i].LastAmendedDateTime.ToOADate();
+                OwnerWS.Cells[rc, 26].Value = Owners[i].LastAmendedMethod;
 
                 if (users.Any(x => x.ID == Owners[i].LastAmendedUserID))
                 {
-                    OwnerWS.Cells[rc, 22].Value = users.FirstOrDefault(x => x.ID == Owners[i].LastAmendedUserID).Firstname;
-                    OwnerWS.Cells[rc, 23].Value = users.FirstOrDefault(x => x.ID == Owners[i].LastAmendedUserID).PublicID;
+                    OwnerWS.Cells[rc, 27].Value = users.FirstOrDefault(x => x.ID == Owners[i].LastAmendedUserID).Firstname;
+                    OwnerWS.Cells[rc, 28].Value = users.FirstOrDefault(x => x.ID == Owners[i].LastAmendedUserID).PublicID;
                 }
                 else
-                    OwnerWS.Cells[rc, 22].Value = "UserID: " + Owners[i].LastAmendedUserID.ToString();
+                    OwnerWS.Cells[rc, 27].Value = "UserID: " + Owners[i].LastAmendedUserID.ToString();
 
-                OwnerWS.Cells[rc, 24].Value = Owners[i].DeletedFlag;
+                OwnerWS.Cells[rc, 29].Value = Owners[i].DeletedFlag;
 
                 rc++;
             }

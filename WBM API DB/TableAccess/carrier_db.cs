@@ -1,6 +1,7 @@
 ﻿using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
+using wbm_common.DataObjects;
 
 namespace WBM_API.WBM_API_DB
 {
@@ -39,60 +40,133 @@ namespace WBM_API.WBM_API_DB
             }
         }
 
+        private IQueryable<Carrier.dbRowExtended> CarrierQuery()
+        {
+            return
+                from carrier in _dbContext.Carrier.AsNoTracking()
+                join site in _dbContext.Site.AsNoTracking()
+                    on carrier.SiteID equals site.ID into siteGroup
+                from site in siteGroup.DefaultIfEmpty()
 
-        public async Task<Result<List<wbm_common.DataObjects.Carrier.dbRow>>> Carrier_ListByPaperlessKeyID(string PaperlessKeyID)
+                select new Carrier.dbRowExtended
+                {
+                    ID = carrier.ID,
+                    PublicID = carrier.PublicID,
+                    SiteID = carrier.SiteID,
+                    Description = carrier.Description,
+                    SortOrder = carrier.SortOrder,
+                    Paperless_KeyID = carrier.Paperless_KeyID,
+                    DeletedFlag = carrier.DeletedFlag,
+                    CreatedDateTime =carrier.CreatedDateTime,
+                    CreatedMethod = carrier.CreatedMethod,
+                    CreatedUserID = carrier.CreatedUserID,
+                    LastAmendedDateTime = carrier.LastAmendedDateTime,
+                    LastAmendedMethod = carrier.LastAmendedMethod,
+                    LastAmendedUserID = carrier.LastAmendedUserID,
+
+                    Site_PublicID = site.PublicID
+                };
+        }
+
+        public async Task<Result<List<wbm_common.DataObjects.Carrier.dbRowExtended>>> Carrier_ListByPaperlessKeyID(string PaperlessKeyID)
         {
             try
             {
-                wbm_common.DataObjects.Carrier.dbRow carrier = await _dbContext.Carrier.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.Paperless_KeyID == PaperlessKeyID);
+                wbm_common.DataObjects.Carrier.dbRowExtended carrierDb = await (from carrier in _dbContext.Carrier.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && x.Paperless_KeyID == PaperlessKeyID).Take(1)
+                                                                        join site in _dbContext.Site.AsNoTracking()
+                                                                         on carrier.SiteID equals site.ID into siteGroup
+                                                                        from site in siteGroup.DefaultIfEmpty()
 
-                if (carrier == null)
-                    return Result.Success<List<wbm_common.DataObjects.Carrier.dbRow>>(new List<wbm_common.DataObjects.Carrier.dbRow>());
+                                                                        select new Carrier.dbRowExtended
+                                                                        {
+                                                                            ID = carrier.ID,
+                                                                            PublicID = carrier.PublicID,
+                                                                            SiteID = carrier.SiteID,
+                                                                            Description = carrier.Description,
+                                                                            SortOrder = carrier.SortOrder,
+                                                                            Paperless_KeyID = carrier.Paperless_KeyID,
+                                                                            DeletedFlag = carrier.DeletedFlag,
+                                                                            CreatedDateTime = carrier.CreatedDateTime,
+                                                                            CreatedMethod = carrier.CreatedMethod,
+                                                                            CreatedUserID = carrier.CreatedUserID,
+                                                                            LastAmendedDateTime = carrier.LastAmendedDateTime,
+                                                                            LastAmendedMethod = carrier.LastAmendedMethod,
+                                                                            LastAmendedUserID = carrier.LastAmendedUserID,
+
+                                                                            Site_PublicID = site.PublicID
+                                                                        }).FirstOrDefaultAsync();
+                if (carrierDb == null)
+                    return Result.Success<List<wbm_common.DataObjects.Carrier.dbRowExtended>>(new List<wbm_common.DataObjects.Carrier.dbRowExtended>());
                 else
-                    return Result.Success<List<wbm_common.DataObjects.Carrier.dbRow>>(new List<wbm_common.DataObjects.Carrier.dbRow> { carrier });
+                    return Result.Success<List<wbm_common.DataObjects.Carrier.dbRowExtended>>(new List<wbm_common.DataObjects.Carrier.dbRowExtended> { carrierDb });
             }
             catch (Exception ex)
             {
                 logger.Error("Carrier_ListByPaperlessKeyID - " + PaperlessKeyID + ": " + ex);
-                return Result.Exception<List<wbm_common.DataObjects.Carrier.dbRow>>("Internal Exception occured");
+                return Result.Exception<List<wbm_common.DataObjects.Carrier.dbRowExtended>>("Internal Exception occured");
             }
         }
 
-        public async Task<Result<wbm_common.DataObjects.Carrier.dbRow>> Carrier_SearchByPublicID(string PublicID)
+        public async Task<Result<wbm_common.DataObjects.Carrier.dbRow>> Carrier_SearchByPublicIDSiteID(string PublicID, int siteID)
         {
             try
             {
-                wbm_common.DataObjects.Carrier.dbRow carrier = await _dbContext.Carrier.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.PublicID == PublicID);
+                wbm_common.DataObjects.Carrier.dbRow carrierDb = await _dbContext.Carrier.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && x.PublicID == PublicID && x.SiteID == siteID).FirstOrDefaultAsync();
 
-                if (carrier == null)
+                if (carrierDb == null)
                     return Result.Failure<wbm_common.DataObjects.Carrier.dbRow>("Carrier not found : " + PublicID);
                 else
-                    return Result.Success<wbm_common.DataObjects.Carrier.dbRow>(carrier);
+                    return Result.Success<wbm_common.DataObjects.Carrier.dbRow>(carrierDb);
 
             }
             catch (Exception ex)
             {
-                logger.Error("Carrier_SearchByPublicID - " + PublicID + ": " + ex);
+                logger.Error("Carrier_SearchByPublicIDSiteID - PublicID " + PublicID + ", SiteID " + siteID.ToString() + ": " + ex);
                 return Result.Exception<wbm_common.DataObjects.Carrier.dbRow>("Internal Exception occured");
             }
         }
 
         // read and search are different because of the deleted flag
-        public async Task<Result<List<wbm_common.DataObjects.Carrier.dbRow>>> Carrier_SearchByID(int ID)
+        public async Task<Result<List<wbm_common.DataObjects.Carrier.dbRowExtended>>> Carrier_SearchByID(int ID)
         {
             try
             {
-                wbm_common.DataObjects.Carrier.dbRow carrier = await _dbContext.Carrier.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.ID == ID);
+                wbm_common.DataObjects.Carrier.dbRowExtended carrierDb = await (from carrier in _dbContext.Carrier.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && x.ID == ID).Take(1)
+                                                                        join site in _dbContext.Site.AsNoTracking()
+                                                                            on carrier.SiteID equals site.ID into siteGroup
+                                                                        from site in siteGroup.DefaultIfEmpty()
 
-                if (carrier == null)
-                    return Result.Success<List<wbm_common.DataObjects.Carrier.dbRow>>(new List<wbm_common.DataObjects.Carrier.dbRow>());
+                                                                        select new Carrier.dbRowExtended
+                                                                        {
+                                                                            ID = carrier.ID,
+                                                                            PublicID = carrier.PublicID,
+                                                                            SiteID = carrier.SiteID,
+                                                                            Description = carrier.Description,
+                                                                            SortOrder = carrier.SortOrder,
+                                                                            Paperless_KeyID = carrier.Paperless_KeyID,
+                                                                            DeletedFlag = carrier.DeletedFlag,
+                                                                            CreatedDateTime = carrier.CreatedDateTime,
+                                                                            CreatedMethod = carrier.CreatedMethod,
+                                                                            CreatedUserID = carrier.CreatedUserID,
+                                                                            LastAmendedDateTime = carrier.LastAmendedDateTime,
+                                                                            LastAmendedMethod = carrier.LastAmendedMethod,
+                                                                            LastAmendedUserID = carrier.LastAmendedUserID,
+
+                                                                            Site_PublicID = site.PublicID
+                                                                        }).FirstOrDefaultAsync();
+
+                if (carrierDb == null)
+                    return Result.Success<List<wbm_common.DataObjects.Carrier.dbRowExtended>>(new List<wbm_common.DataObjects.Carrier.dbRowExtended>());
                 else
-                    return Result.Success<List<wbm_common.DataObjects.Carrier.dbRow>>(new List<wbm_common.DataObjects.Carrier.dbRow> { carrier });
+                    return Result.Success<List<wbm_common.DataObjects.Carrier.dbRowExtended>>(new List<wbm_common.DataObjects.Carrier.dbRowExtended> { carrierDb });
             }
             catch (Exception ex)
             {
                 logger.Error("Carrier_SearchByID - " + ID.ToString() + ": " + ex);
-                return Result.Exception<List<wbm_common.DataObjects.Carrier.dbRow>>("Internal Exception occured");
+                return Result.Exception<List<wbm_common.DataObjects.Carrier.dbRowExtended>>("Internal Exception occured");
             }
         }
 
@@ -101,12 +175,13 @@ namespace WBM_API.WBM_API_DB
         {
             try
             {
-                wbm_common.DataObjects.Carrier.dbRow carrier = await _dbContext.Carrier.AsNoTracking().FirstOrDefaultAsync(x => x.ID == ID);
+                wbm_common.DataObjects.Carrier.dbRow carrierDb = await _dbContext.Carrier.AsNoTracking()
+                                                                        .Where(x => x.ID == ID).FirstOrDefaultAsync();
 
-                if (carrier == null)
+                if (carrierDb == null)
                     return Result.Failure<wbm_common.DataObjects.Carrier.dbRow>("Carrier not found : " + ID.ToString());
                 else
-                    return Result.Success<wbm_common.DataObjects.Carrier.dbRow>(carrier);
+                    return Result.Success<wbm_common.DataObjects.Carrier.dbRow>(carrierDb);
             }
             catch (Exception ex)
             {
@@ -115,55 +190,101 @@ namespace WBM_API.WBM_API_DB
             }
         }
 
-        public async Task<Result<List<wbm_common.DataObjects.Carrier.dbRow>>> Carrier_List()
+        public async Task<Result<List<wbm_common.DataObjects.Carrier.dbRowExtended>>> Carrier_List()
         {
             try
             {
-                List<wbm_common.DataObjects.Carrier.dbRow> carriers = await _dbContext.Carrier.AsNoTracking().Where(x => !x.DeletedFlag).ToListAsync();
+                List<wbm_common.DataObjects.Carrier.dbRowExtended> carriers = await (from carrier in _dbContext.Carrier.AsNoTracking()
+                                                                             .Where(x => !x.DeletedFlag)
+                                                                             join site in _dbContext.Site.AsNoTracking()
+                                                                                 on carrier.SiteID equals site.ID into siteGroup
+                                                                             from site in siteGroup.DefaultIfEmpty()
 
-                return Result.Success<List<wbm_common.DataObjects.Carrier.dbRow>>(carriers);
+                                                                             select new Carrier.dbRowExtended
+                                                                             {
+                                                                                 ID = carrier.ID,
+                                                                                 PublicID = carrier.PublicID,
+                                                                                 SiteID = carrier.SiteID,
+                                                                                 Description = carrier.Description,
+                                                                                 SortOrder = carrier.SortOrder,
+                                                                                 Paperless_KeyID = carrier.Paperless_KeyID,
+                                                                                 DeletedFlag = carrier.DeletedFlag,
+                                                                                 CreatedDateTime = carrier.CreatedDateTime,
+                                                                                 CreatedMethod = carrier.CreatedMethod,
+                                                                                 CreatedUserID = carrier.CreatedUserID,
+                                                                                 LastAmendedDateTime = carrier.LastAmendedDateTime,
+                                                                                 LastAmendedMethod = carrier.LastAmendedMethod,
+                                                                                 LastAmendedUserID = carrier.LastAmendedUserID,
+
+                                                                                 Site_PublicID = site.PublicID
+                                                                             }).ToListAsync();
+
+                return Result.Success<List<wbm_common.DataObjects.Carrier.dbRowExtended>>(carriers);
             }
             catch (Exception ex)
             {
                 logger.Error("Carrier_List: " + ex);
 
-                return Result.Exception<List<wbm_common.DataObjects.Carrier.dbRow>>("Internal Exception occured");
+                return Result.Exception<List<wbm_common.DataObjects.Carrier.dbRowExtended>>("Internal Exception occured");
             }
         }
 
-        public async Task<Result<List<wbm_common.DataObjects.Carrier.dbRow>>> Carrier_ListByListIDs(List<int> IDs)
+        public async Task<Result<List<wbm_common.DataObjects.Carrier.dbRowExtended>>> Carrier_ListByListIDs(List<int> IDs)
         {
             if (IDs == null || IDs.Count == 0)
             {
                 logger.Error("Carrier_ListByListIDs was null or blank ");
-                return Result.Failure<List<wbm_common.DataObjects.Carrier.dbRow>>("IDs list is null or empty");
+                return Result.Failure<List<wbm_common.DataObjects.Carrier.dbRowExtended>>("IDs list is null or empty");
             }
             else
             {
                 try
                 {
-                    List<wbm_common.DataObjects.Carrier.dbRow> carriers = await _dbContext.Carrier.AsNoTracking().Where(x => !x.DeletedFlag && IDs.Contains(x.ID)).ToListAsync();
-                    return Result.Success<List<wbm_common.DataObjects.Carrier.dbRow>>(carriers);
+                    List<wbm_common.DataObjects.Carrier.dbRowExtended> carriers = await (from carrier in _dbContext.Carrier.AsNoTracking()
+                                                                                 .Where(x => !x.DeletedFlag && IDs.Contains(x.ID))
+                                                                                 join site in _dbContext.Site.AsNoTracking()
+                                                                                     on carrier.SiteID equals site.ID into siteGroup
+                                                                                 from site in siteGroup.DefaultIfEmpty()
+
+                                                                                 select new Carrier.dbRowExtended
+                                                                                 {
+                                                                                     ID = carrier.ID,
+                                                                                     PublicID = carrier.PublicID,
+                                                                                     SiteID = carrier.SiteID,
+                                                                                     Description = carrier.Description,
+                                                                                     SortOrder = carrier.SortOrder,
+                                                                                     Paperless_KeyID = carrier.Paperless_KeyID,
+                                                                                     DeletedFlag = carrier.DeletedFlag,
+                                                                                     CreatedDateTime = carrier.CreatedDateTime,
+                                                                                     CreatedMethod = carrier.CreatedMethod,
+                                                                                     CreatedUserID = carrier.CreatedUserID,
+                                                                                     LastAmendedDateTime = carrier.LastAmendedDateTime,
+                                                                                     LastAmendedMethod = carrier.LastAmendedMethod,
+                                                                                     LastAmendedUserID = carrier.LastAmendedUserID,
+
+                                                                                     Site_PublicID = site.PublicID
+                                                                                 }).ToListAsync();
+                    return Result.Success<List<wbm_common.DataObjects.Carrier.dbRowExtended>>(carriers);
                 }
                 catch (Exception ex)
                 {
                     logger.Error("Carrier_ListByListIDs: " + ex);
-                    return Result.Exception<List<wbm_common.DataObjects.Carrier.dbRow>>("Internal Exception occured");
+                    return Result.Exception<List<wbm_common.DataObjects.Carrier.dbRowExtended>>("Internal Exception occured");
                 }
             }
         }
 
-        public async Task<Result<List<wbm_common.DataObjects.Carrier.dbRow>>> Carrier_ListBySql(string sqlString, List<SqlParameter> ListSqlParameter)
+        public async Task<Result<List<wbm_common.DataObjects.Carrier.dbRowExtended>>> Carrier_ListBySql(string sqlString, List<SqlParameter> ListSqlParameter)
         {
             try
             {
-                List<wbm_common.DataObjects.Carrier.dbRow> carriers = await _dbContext.Carrier.FromSqlRaw(sqlString, ListSqlParameter.ToArray()).ToListAsync();
-                return Result.Success<List<wbm_common.DataObjects.Carrier.dbRow>>(carriers);
+                List<wbm_common.DataObjects.Carrier.dbRowExtended> carriers = await _dbContext.Database.SqlQueryRaw<wbm_common.DataObjects.Carrier.dbRowExtended>(sqlString, ListSqlParameter.ToArray()).ToListAsync();
+                return Result.Success<List<wbm_common.DataObjects.Carrier.dbRowExtended>>(carriers);
             }
             catch (Exception ex)
             {
                 logger.Error("Carrier_ListBySql -  " + sqlString + " : ex = " + ex);
-                return Result.Exception<List<wbm_common.DataObjects.Carrier.dbRow>>("Internal Exception occured");
+                return Result.Exception<List<wbm_common.DataObjects.Carrier.dbRowExtended>>("Internal Exception occured");
             }
         }
     }

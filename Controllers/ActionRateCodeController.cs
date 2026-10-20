@@ -2,12 +2,10 @@
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NLog.Web;
-using System.Diagnostics;
 using WBM_API.Helpers;
 using WBM_API.Helpers.Excel;
-using WBM_API.Models;
-using WBM_API.Models.ResponseObjects;
 using WBM_API.WBM_API_DB;
+using wbm_common.NonDatabaseObjects;
 using static WBM_API.Helpers.ControllerHelper;
 
 namespace WBM_API.Controllers;
@@ -45,7 +43,7 @@ public class ActionRateCodeController : ControllerBase
             // Do the search
             // Item1 : error message
             // Item2 : search results
-            Result<List<wbm_common.DataObjects.ActionRateCode.dbRow>> ActionRateCodeSearchResult = await ActionRateCodeHelper.ExecuteSearch((wbm_common.DataObjects.ActionRateCode.Search)APICommonReturn.genericObject, _WBMDB);
+            Result<List<wbm_common.DataObjects.ActionRateCode.dbRowExtended>> ActionRateCodeSearchResult = await ActionRateCodeHelper.ExecuteSearch((wbm_common.DataObjects.ActionRateCode.Search)APICommonReturn.genericObject, _WBMDB);
 
             if (ActionRateCodeSearchResult.IsException)
                 return Helpers.ActionResultUtils.Send500Response(new List<ErrorMessage> { new ErrorMessage { Error = ActionRateCodeSearchResult.ErrorMessage } }, false, apiTransactionLog, _WBMDB);
@@ -68,8 +66,6 @@ public class ActionRateCodeController : ControllerBase
         string APIEndPointName = "ActionRateCodeSave";
         wbm_common.DataObjects.Log.dbRow apiTransactionLog = new wbm_common.DataObjects.Log.dbRow();
 
-        int UserID = 0;
-
         try
         {
             APILoggingReturn APICommonReturn = await CommonAPILogging(User, Request, APIEndPointName, _WBMDB, apiTransactionLog, "Save_IsValid", "Save_ValidationErrors", new wbm_common.DataObjects.ActionRateCode());
@@ -79,7 +75,7 @@ public class ActionRateCodeController : ControllerBase
             else if (APICommonReturn.errorCode == 500)
                 return Helpers.ActionResultUtils.Send500Response(new List<ErrorMessage> { new ErrorMessage { Error = APICommonReturn.error } }, false, apiTransactionLog, _WBMDB);
 
-            ActionRateCodeHelper.ActionRateCodeSave saveClass = new ActionRateCodeHelper.ActionRateCodeSave((wbm_common.DataObjects.ActionRateCode)APICommonReturn.genericObject, UserID, _WBMDB);
+            ActionRateCodeHelper.ActionRateCodeSave saveClass = new ActionRateCodeHelper.ActionRateCodeSave((wbm_common.DataObjects.ActionRateCode)APICommonReturn.genericObject, apiTransactionLog.UserID, _WBMDB);
 
             if (saveClass.Save())
                 return Helpers.ActionResultUtils.Send200Response((wbm_common.DataObjects.ActionRateCode)APICommonReturn.genericObject, apiTransactionLog, _WBMDB);

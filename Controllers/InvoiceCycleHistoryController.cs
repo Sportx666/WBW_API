@@ -2,11 +2,9 @@
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using NLog.Web;
-using System.Diagnostics;
 using WBM_API.Helpers;
 using WBM_API.Helpers.Excel;
-using WBM_API.Models;
-using WBM_API.Models.ResponseObjects;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
 using static WBM_API.Helpers.ControllerHelper;
 
@@ -45,7 +43,7 @@ public class InvoiceCycleHistoryController : ControllerBase
             // Do the search
             // Item1 : error message
             // Item2 : search results
-            Result<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRow>> InvoiceCycleHistorySearchResult = await InvoiceCycleHistoryHelper.ExecuteSearch((wbm_common.DataObjects.InvoiceCycleHistory.Search)APICommonReturn.genericObject, _WBMDB);
+            Result<List<wbm_common.DataObjects.InvoiceCycleHistory.dbRowExtended>> InvoiceCycleHistorySearchResult = await InvoiceCycleHistoryHelper.ExecuteSearch((wbm_common.DataObjects.InvoiceCycleHistory.Search)APICommonReturn.genericObject, _WBMDB);
 
             if (InvoiceCycleHistorySearchResult.IsException)
                 return Helpers.ActionResultUtils.Send500Response(new List<ErrorMessage> { new ErrorMessage { Error = InvoiceCycleHistorySearchResult.ErrorMessage } }, false, apiTransactionLog, _WBMDB);
@@ -68,8 +66,6 @@ public class InvoiceCycleHistoryController : ControllerBase
         string APIEndPointName = "InvoiceCycleHistorySave";
         wbm_common.DataObjects.Log.dbRow apiTransactionLog = new wbm_common.DataObjects.Log.dbRow();
 
-        int UserID = 0;
-
         try
         {
             APILoggingReturn APICommonReturn = await CommonAPILogging(User, Request, APIEndPointName, _WBMDB, apiTransactionLog, "Save_IsValid", "Save_ValidationErrors", new wbm_common.DataObjects.InvoiceCycleHistory());
@@ -79,7 +75,7 @@ public class InvoiceCycleHistoryController : ControllerBase
             else if (APICommonReturn.errorCode == 500)
                 return Helpers.ActionResultUtils.Send500Response(new List<ErrorMessage> { new ErrorMessage { Error = APICommonReturn.error } }, false, apiTransactionLog, _WBMDB);
 
-            InvoiceCycleHistoryHelper.InvoiceCycleHistorySave saveClass = new InvoiceCycleHistoryHelper.InvoiceCycleHistorySave((wbm_common.DataObjects.InvoiceCycleHistory)APICommonReturn.genericObject, UserID, _WBMDB);
+            InvoiceCycleHistoryHelper.InvoiceCycleHistorySave saveClass = new InvoiceCycleHistoryHelper.InvoiceCycleHistorySave((wbm_common.DataObjects.InvoiceCycleHistory)APICommonReturn.genericObject, apiTransactionLog.UserID, _WBMDB);
 
             if (saveClass.Save())
                 return Helpers.ActionResultUtils.Send200Response((wbm_common.DataObjects.InvoiceCycleHistory)APICommonReturn.genericObject, apiTransactionLog, _WBMDB);

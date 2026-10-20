@@ -2,18 +2,19 @@
 using NLog;
 using NLog.Web;
 using System.Data.SqlTypes;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
+using wbm_common.DataObjects;
 
 namespace WBM_API.Helpers
 {
     public class RateCollectionDefnHelper
     {
         private static Logger logger = LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
-        public static async Task<Result<List<wbm_common.DataObjects.RateCollectionDefn.dbRow>>> ExecuteSearch(wbm_common.DataObjects.RateCollectionDefn.Search _RateCollectionDefnSearchData, WBMDatabase _WBMDB, IHubCallerClients Clients = null, Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> inCallBackStatusFunction = null, wbm_common.DataObjects.LongRunProcessHeader.dbRow longRunProcessHeader = null)
+        public static async Task<Result<List<wbm_common.DataObjects.RateCollectionDefn.dbRowExtended>>> ExecuteSearch(wbm_common.DataObjects.RateCollectionDefn.Search _RateCollectionDefnSearchData, WBMDatabase _WBMDB, IHubCallerClients Clients = null, Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> inCallBackStatusFunction = null, wbm_common.DataObjects.LongRunProcessHeader.dbRow longRunProcessHeader = null)
         {
-            Result<List<wbm_common.DataObjects.RateCollectionDefn.dbRow>> rc;
-            List<wbm_common.DataObjects.RateCollectionDefn.dbRow> RateCollectionDefns;
+            Result<List<wbm_common.DataObjects.RateCollectionDefn.dbRowExtended>> rc;
+            List<wbm_common.DataObjects.RateCollectionDefn.dbRowExtended> RateCollectionDefns;
             switch (_RateCollectionDefnSearchData.SearchMode)
             {
                 case wbm_common.DataObjects.RateCollectionDefn.Search.SearchModeType.Undefined:
@@ -24,7 +25,7 @@ namespace WBM_API.Helpers
                     }
                 case wbm_common.DataObjects.RateCollectionDefn.Search.SearchModeType.SingleID:
                     {
-                        rc = await _WBMDB.RateCollectionDefnList_SearchByID(_RateCollectionDefnSearchData.ID);
+                        rc = await _WBMDB.RateCollectionDefn_ListByID(_RateCollectionDefnSearchData.ID);
                         break;
                     }
                 case wbm_common.DataObjects.RateCollectionDefn.Search.SearchModeType.AllRecords:
@@ -35,7 +36,7 @@ namespace WBM_API.Helpers
                 default:
                     {
                         logger.Error("RateCollectionDefnHelper.ExecuteSearch: RateCollectionDefn Search Mode Type Error");
-                        rc = Result.Exception<List<wbm_common.DataObjects.RateCollectionDefn.dbRow>>("Internal Exception occured");
+                        rc = Result.Exception<List<wbm_common.DataObjects.RateCollectionDefn.dbRowExtended>>("Internal Exception occured");
                         break;
                     }
             }
@@ -90,6 +91,13 @@ namespace WBM_API.Helpers
 
             public Boolean Save()
             {
+                List<string> fieldErrors = DbRowValidator.requiredFieldErrors(RateCollectionDefn.MyRequiredList, saveRow, _WBMDB);
+                if (fieldErrors.Count() > 0)
+                {
+                    ErrorMessage = string.Join(", ", fieldErrors);
+                    ReturnState = 400;
+                    return false;
+                }
                 if (CheckExist())
                 {
                     if (Exists)
@@ -185,7 +193,7 @@ namespace WBM_API.Helpers
                 }
                 else
                 {
-                    Result<wbm_common.DataObjects.RateCollectionDefn.dbRow> rcexist = _WBMDB.RateCollectionDefn_SearchByID(saveRow.ID).GetAwaiter().GetResult();
+                    Result<wbm_common.DataObjects.RateCollectionDefn.dbRow> rcexist = _WBMDB.RateCollectionDefn_SearchByPublicID(saveRow.PublicID).GetAwaiter().GetResult();
 
                     if (rcexist.IsException)
                     {
@@ -199,8 +207,8 @@ namespace WBM_API.Helpers
                     else
                     {
                         // We have at least one row... :(
-                        ErrorMessage = "ID already in use, must be unique - " + saveRow.ID.ToString();
-                        logger.Error("RateCollectionDefnSave ID " + saveRow.ID.ToString() + " already exists");
+                        ErrorMessage = "PublicID already in use, must be unique - " + saveRow.PublicID;
+                        logger.Error("RateCollectionDefnSave PublicID " + saveRow.PublicID + " already exists");
                         ReturnState = 400;
                         SavedSuccessfully = false;
                         return false;
@@ -281,12 +289,10 @@ namespace WBM_API.Helpers
                     {
                         changeHeaderRow.ID = chResult.Value;
 
-                        int ChangeHeaderTableID = (int)wbm_common.DataObjects.ChangeTracking.ChangeHeaderTableID.RateCollectionDefn;
-
                         foreach (wbm_common.DataObjects.ChangeDetail.dbRow cdRow in ct.ListChangeDetail)
                         {
                             cdRow.ChangeHeaderID = changeHeaderRow.ID;
-                            cdRow.ChangeHeaderTableID = ChangeHeaderTableID;
+                            cdRow.ChangeHeaderTableID = changeHeaderRow.ChangeHeaderTableID;
                             cdRow.RecordID = changeHeaderRow.RecordID;
 
                             Result<int> cdResult = _WBMDB.ChangeDetail_Insert((wbm_common.DataObjects.ChangeDetail.dbRow)cdRow).GetAwaiter().GetResult();

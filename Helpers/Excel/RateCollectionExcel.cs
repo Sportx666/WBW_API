@@ -3,7 +3,7 @@ using NLog;
 using NLog.Web;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
-using WBM_API.Models;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
 using wbm_common.DataObjects;
 
@@ -17,11 +17,11 @@ namespace WBM_API.Helpers.Excel
 
         private readonly WBMDatabase _WBMDB;
 
-        public List<wbm_common.DataObjects.Company.dbRow> companies = null;
+        public List<wbm_common.DataObjects.Company.dbRowExtended> companies = null;
         public List<wbm_common.DataObjects.Security_User.dbRow> users = null;
         public List<wbm_common.DataObjects.RateFunction.dbRow> ratefunctions = null;
         public List<wbm_common.DataObjects.RateCode.dbRow> ratecodes = null;
-        public List<wbm_common.DataObjects.RateCollection.dbRow> RateCollections = null;
+        public List<wbm_common.DataObjects.RateCollection.dbRowExtended> RateCollections = null;
         public Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> CallBackStatusFunction { get; set; }
         private IHubCallerClients Clients;
         public wbm_common.DataObjects.LongRunProcessHeader.dbRow lrph { get; set; }
@@ -74,7 +74,7 @@ namespace WBM_API.Helpers.Excel
         private async Task<bool> GetData()
         {
 
-            Result<List<wbm_common.DataObjects.RateCollection.dbRow>> rc = await RateCollectionHelper.ExecuteSearch(RateCollectionSearchData, _WBMDB);
+            Result<List<wbm_common.DataObjects.RateCollection.dbRowExtended>> rc = await RateCollectionHelper.ExecuteSearch(RateCollectionSearchData, _WBMDB);
 
             if (rc.IsFailure)
             {
@@ -115,7 +115,7 @@ namespace WBM_API.Helpers.Excel
 
             if (ListCompanyIDs.Count > 0)
             {
-                Result<List<wbm_common.DataObjects.Company.dbRow>> companiesResults = _WBMDB.Company_ListByListIDs(ListCompanyIDs).GetAwaiter().GetResult();
+                Result<List<wbm_common.DataObjects.Company.dbRowExtended>> companiesResults = _WBMDB.Company_ListByListIDs(ListCompanyIDs).GetAwaiter().GetResult();
                 if (companiesResults.IsFailure || companiesResults.IsException)
                 {
                     ErrorMessage = ErrorCodes.GeneralDB.ToString();
@@ -226,7 +226,8 @@ namespace WBM_API.Helpers.Excel
 
                 RateCollectionWS.Cells[rc, 8].Value = RateCollections[i].Description;
                 RateCollectionWS.Cells[rc, 9].Value = RateCollections[i].SecondarySort;
-                RateCollectionWS.Cells[rc, 10].Value = RateCollections[i].DateOfChange;
+                if (RateCollections[i].DateOfChange.HasValue)
+                    RateCollectionWS.Cells[rc, 10].Value = RateCollections[i].DateOfChange.Value.ToOADate();
 
                 if (ratecodes.Any(x => x.ID == RateCollections[i].NewRateCodeID))
                 {

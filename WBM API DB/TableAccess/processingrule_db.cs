@@ -1,11 +1,298 @@
 ﻿using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using WBM_API.Models;
+using System.Diagnostics;
+using wbm_common.NonDatabaseObjects;
+using wbm_common.DataObjects;
 
 namespace WBM_API.WBM_API_DB
 {
     public partial class WBMDatabase
     {
+        #region Process
+        public async Task<Result<int>> Process_Insert(wbm_common.DataObjects.Process.dbRow Process)
+        {
+            try
+            {
+                await _dbContext.Process.AddAsync(Process);
+                await _dbContext.SaveChangesAsync();
+
+                return Result.Success<int>(Process.ID);
+            }
+            catch (Exception ex)
+            {
+                logger.Error("Process_Insert - " + Process.PublicID + ": " + ex);
+                return Result.Exception<int>("Internal Exception occured");
+            }
+        }
+
+        public async Task<Result<int>> Process_Update(wbm_common.DataObjects.Process.dbRow Process)
+        {
+            try
+            {
+                _dbContext.Process.Attach(Process);
+                _dbContext.Entry(Process).State = EntityState.Modified;
+                await _dbContext.SaveChangesAsync();
+
+                return Result.Success<int>(Process.ID);
+            }
+            catch (Exception ex)
+            {
+                logger.Error("Process_Update - " + Process.PublicID + ": " + ex);
+                return Result.Exception<int>("Internal Exception occured");
+            }
+        }
+
+        public async Task<Result<wbm_common.DataObjects.Process.dbRow>> Process_SearchByPublicID(string PublicID)
+        {
+            try
+            {
+                wbm_common.DataObjects.Process.dbRow Process = await _dbContext.Process.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.PublicID == PublicID);
+
+                if (Process == null)
+                    return Result.Failure<wbm_common.DataObjects.Process.dbRow>("Process not found : " + PublicID);
+                else
+                    return Result.Success<wbm_common.DataObjects.Process.dbRow>(Process);
+
+            }
+            catch (Exception ex)
+            {
+                logger.Error("Process_SearchByPublicID - " + PublicID + ": " + ex);
+                return Result.Exception<wbm_common.DataObjects.Process.dbRow>("Internal Exception occured");
+            }
+        }
+
+        // read and search are different because of the deleted flag
+        public async Task<Result<List<wbm_common.DataObjects.Process.dbRow>>> Process_SearchByID(int ID)
+        {
+            try
+            {
+                wbm_common.DataObjects.Process.dbRow Process = await _dbContext.Process.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.ID == ID);
+
+                if (Process == null)
+                    return Result.Success<List<wbm_common.DataObjects.Process.dbRow>>(new List<wbm_common.DataObjects.Process.dbRow>());
+                else
+                    return Result.Success<List<wbm_common.DataObjects.Process.dbRow>>(new List<wbm_common.DataObjects.Process.dbRow> { Process });
+            }
+            catch (Exception ex)
+            {
+                logger.Error("Process_SearchByID - " + ID.ToString() + ": " + ex);
+                return Result.Exception<List<wbm_common.DataObjects.Process.dbRow>>("Internal Exception occured");
+            }
+        }
+
+        // read and search are different because of the deleted flag
+        public async Task<Result<wbm_common.DataObjects.Process.dbRow>> Process_ReadByID(int ID)
+        {
+            try
+            {
+                wbm_common.DataObjects.Process.dbRow Process = await _dbContext.Process.AsNoTracking().FirstOrDefaultAsync(x => x.ID == ID);
+
+                if (Process == null)
+                    return Result.Failure<wbm_common.DataObjects.Process.dbRow>("Process not found : " + ID.ToString());
+                else
+                    return Result.Success<wbm_common.DataObjects.Process.dbRow>(Process);
+            }
+            catch (Exception ex)
+            {
+                logger.Error("Process_ReadByID - " + ID.ToString() + ": " + ex);
+                return Result.Exception<wbm_common.DataObjects.Process.dbRow>("Internal Exception occured");
+            }
+        }
+
+        public async Task<Result<List<wbm_common.DataObjects.Process.dbRow>>> Process_List()
+        {
+            try
+            {
+                List<wbm_common.DataObjects.Process.dbRow> Processs = await _dbContext.Process.AsNoTracking().Where(x => !x.DeletedFlag).ToListAsync();
+
+                return Result.Success<List<wbm_common.DataObjects.Process.dbRow>>(Processs);
+            }
+            catch (Exception ex)
+            {
+                logger.Error("Process_List: " + ex);
+
+                return Result.Exception<List<wbm_common.DataObjects.Process.dbRow>>("Internal Exception occured");
+            }
+        }
+
+        public async Task<Result<List<wbm_common.DataObjects.Process.dbRow>>> Process_ListByListIDs(List<int> IDs)
+        {
+            if (IDs == null || IDs.Count == 0)
+            {
+                logger.Error("Process_ListByListIDs was null or blank ");
+                return Result.Failure<List<wbm_common.DataObjects.Process.dbRow>>("IDs list is null or empty");
+            }
+            else
+            {
+                try
+                {
+                    List<wbm_common.DataObjects.Process.dbRow> Processs = await _dbContext.Process.AsNoTracking().Where(x => !x.DeletedFlag && IDs.Contains(x.ID)).ToListAsync();
+                    return Result.Success<List<wbm_common.DataObjects.Process.dbRow>>(Processs);
+                }
+                catch (Exception ex)
+                {
+                    logger.Error("Process_ListByListIDs: " + ex);
+                    return Result.Exception<List<wbm_common.DataObjects.Process.dbRow>>("Internal Exception occured");
+                }
+            }
+        }
+
+        public async Task<Result<List<wbm_common.DataObjects.Process.dbRow>>> Process_ListBySql(string sqlString, List<SqlParameter> ListSqlParameter)
+        {
+            try
+            {
+                List<wbm_common.DataObjects.Process.dbRow> Processs = await _dbContext.Process.FromSqlRaw(sqlString, ListSqlParameter.ToArray()).ToListAsync();
+                return Result.Success<List<wbm_common.DataObjects.Process.dbRow>>(Processs);
+            }
+            catch (Exception ex)
+            {
+                logger.Error("Process_ListBySql -  " + sqlString + " : ex = " + ex);
+                return Result.Exception<List<wbm_common.DataObjects.Process.dbRow>>("Internal Exception occured");
+            }
+        }
+        #endregion
+
+        #region ProcessCategory
+        public async Task<Result<int>> ProcessCategory_Insert(wbm_common.DataObjects.ProcessCategory.dbRow ProcessCategory)
+        {
+            try
+            {
+                await _dbContext.ProcessCategory.AddAsync(ProcessCategory);
+                await _dbContext.SaveChangesAsync();
+
+                return Result.Success<int>(ProcessCategory.ID);
+            }
+            catch (Exception ex)
+            {
+                logger.Error("ProcessCategory_Insert - " + ProcessCategory.ID + ": " + ex);
+                return Result.Exception<int>("Internal Exception occured");
+            }
+        }
+
+        public async Task<Result<int>> ProcessCategory_Update(wbm_common.DataObjects.ProcessCategory.dbRow ProcessCategory)
+        {
+            try
+            {
+                _dbContext.ProcessCategory.Attach(ProcessCategory);
+                _dbContext.Entry(ProcessCategory).State = EntityState.Modified;
+                await _dbContext.SaveChangesAsync();
+
+                return Result.Success<int>(ProcessCategory.ID);
+            }
+            catch (Exception ex)
+            {
+                logger.Error("ProcessCategory_Update - " + ProcessCategory.ID + ": " + ex);
+                return Result.Exception<int>("Internal Exception occured");
+            }
+        }
+
+        // read and search are different because of the deleted flag
+        public async Task<Result<wbm_common.DataObjects.ProcessCategory.dbRow>> ProcessCategory_SearchByID(int ID)
+        {
+            try
+            {
+                wbm_common.DataObjects.ProcessCategory.dbRow ProcessCategory = await _dbContext.ProcessCategory.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.ID == ID);
+
+                if (ProcessCategory == null)
+                    return Result.Failure<wbm_common.DataObjects.ProcessCategory.dbRow>("ProcessCategory not found : " + ID.ToString());
+                else
+                    return Result.Success<wbm_common.DataObjects.ProcessCategory.dbRow>(ProcessCategory);
+
+            }
+            catch (Exception ex)
+            {
+                logger.Error("ProcessCategory_SearchByID - " + ID.ToString() + ": " + ex);
+                return Result.Exception<wbm_common.DataObjects.ProcessCategory.dbRow>("Internal Exception occured");
+            }
+        }
+        public async Task<Result<wbm_common.DataObjects.ProcessCategory.dbRow>> ProcessCategory_SearchByPublicID(string PublicID)
+        {
+            try
+            {
+                wbm_common.DataObjects.ProcessCategory.dbRow ProcessCategory = await _dbContext.ProcessCategory.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.PublicID == PublicID);
+
+                if (ProcessCategory == null)
+                    return Result.Failure<wbm_common.DataObjects.ProcessCategory.dbRow>("ProcessCategory not found : " + PublicID);
+                else
+                    return Result.Success<wbm_common.DataObjects.ProcessCategory.dbRow>(ProcessCategory);
+
+            }
+            catch (Exception ex)
+            {
+                logger.Error("ProcessCategory_SearchByPublicID - " + PublicID + ": " + ex);
+                return Result.Exception<wbm_common.DataObjects.ProcessCategory.dbRow>("Internal Exception occured");
+            }
+        }
+
+        //because of the way the results return work, it makes more sense to keep the result format for all and just have this be a list instead of a single return
+        public async Task<Result<List<wbm_common.DataObjects.ProcessCategory.dbRow>>> ProcessCategory_ListByID(int ID)
+        {
+            try
+            {
+                wbm_common.DataObjects.ProcessCategory.dbRow ProcessCategory = await _dbContext.ProcessCategory.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.ID == ID);
+
+                if (ProcessCategory == null)
+                    return Result.Success<List<wbm_common.DataObjects.ProcessCategory.dbRow>>(new List<wbm_common.DataObjects.ProcessCategory.dbRow>());
+                else
+                    return Result.Success<List<wbm_common.DataObjects.ProcessCategory.dbRow>>(new List<wbm_common.DataObjects.ProcessCategory.dbRow> { ProcessCategory });
+            }
+            catch (Exception ex)
+            {
+                logger.Error("ProcessCategory_ListByID - " + ID.ToString() + ": " + ex);
+                return Result.Exception<List<wbm_common.DataObjects.ProcessCategory.dbRow>>("Internal Exception occured");
+            }
+        }
+
+        // read and search are different because of the deleted flag
+        public async Task<Result<wbm_common.DataObjects.ProcessCategory.dbRow>> ProcessCategory_ReadByID(int ID)
+        {
+            try
+            {
+                wbm_common.DataObjects.ProcessCategory.dbRow ProcessCategory = await _dbContext.ProcessCategory.AsNoTracking().FirstOrDefaultAsync(x => x.ID == ID);
+
+                if (ProcessCategory == null)
+                    return Result.Failure<wbm_common.DataObjects.ProcessCategory.dbRow>("ProcessCategory not found : " + ID.ToString());
+                else
+                    return Result.Success<wbm_common.DataObjects.ProcessCategory.dbRow>(ProcessCategory);
+            }
+            catch (Exception ex)
+            {
+                logger.Error("ProcessCategory_ReadByID - " + ID.ToString() + ": " + ex);
+                return Result.Exception<wbm_common.DataObjects.ProcessCategory.dbRow>("Internal Exception occured");
+            }
+        }
+
+        public async Task<Result<List<wbm_common.DataObjects.ProcessCategory.dbRow>>> ProcessCategory_List()
+        {
+            try
+            {
+                List<wbm_common.DataObjects.ProcessCategory.dbRow> ProcessCategorys = await _dbContext.ProcessCategory.AsNoTracking().Where(x => !x.DeletedFlag).ToListAsync();
+
+                return Result.Success<List<wbm_common.DataObjects.ProcessCategory.dbRow>>(ProcessCategorys);
+            }
+            catch (Exception ex)
+            {
+                logger.Error("ProcessCategory_List: " + ex);
+
+                return Result.Exception<List<wbm_common.DataObjects.ProcessCategory.dbRow>>("Internal Exception occured");
+            }
+        }
+
+        public async Task<Result<List<wbm_common.DataObjects.ProcessCategory.dbRow>>> ProcessCategory_ListBySql(string sqlString, List<SqlParameter> ListSqlParameter)
+        {
+            try
+            {
+                List<wbm_common.DataObjects.ProcessCategory.dbRow> ProcessCategorys = await _dbContext.ProcessCategory.FromSqlRaw(sqlString, ListSqlParameter.ToArray()).ToListAsync();
+                return Result.Success<List<wbm_common.DataObjects.ProcessCategory.dbRow>>(ProcessCategorys);
+            }
+            catch (Exception ex)
+            {
+                logger.Error("ProcessCategory_ListBySql -  " + sqlString + " : ex = " + ex);
+                return Result.Exception<List<wbm_common.DataObjects.ProcessCategory.dbRow>>("Internal Exception occured");
+            }
+        }
+        #endregion
+
         #region ProcessingRule
         public async Task<Result<int>> ProcessingRule_Insert(wbm_common.DataObjects.ProcessingRule.dbRow ProcessingRule)
         {
@@ -40,17 +327,19 @@ namespace WBM_API.WBM_API_DB
             }
         }
 
+        // TODO the process matches here seem off so I reused one
         // read and search are different because of the deleted flag
         public async Task<Result<wbm_common.DataObjects.ProcessingRule.dbRow>> ProcessingRule_SearchByID(int ID)
         {
             try
             {
-                wbm_common.DataObjects.ProcessingRule.dbRow ProcessingRule = await _dbContext.ProcessingRule.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.ID == ID);
+                wbm_common.DataObjects.ProcessingRule.dbRow ProcessingRuleDb = await _dbContext.ProcessingRule.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && x.ID == ID).FirstOrDefaultAsync();
 
-                if (ProcessingRule == null)
+                if (ProcessingRuleDb == null)
                     return Result.Failure<wbm_common.DataObjects.ProcessingRule.dbRow>("ProcessingRule not found : " + ID);
                 else
-                    return Result.Success<wbm_common.DataObjects.ProcessingRule.dbRow>(ProcessingRule);
+                    return Result.Success<wbm_common.DataObjects.ProcessingRule.dbRow>(ProcessingRuleDb);
 
             }
             catch (Exception ex)
@@ -61,21 +350,143 @@ namespace WBM_API.WBM_API_DB
         }
 
         //because of the way the results return work, it makes more sense to keep the result format for all and just have this be a list instead of a single return
-        public async Task<Result<List<wbm_common.DataObjects.ProcessingRule.dbRow>>> ProcessingRuleList_SearchByID(int ID)
+        public async Task<Result<List<wbm_common.DataObjects.ProcessingRule.dbRowExtended>>> ProcessingRule_ListByID(int ID)
         {
             try
             {
-                wbm_common.DataObjects.ProcessingRule.dbRow ProcessingRule = await _dbContext.ProcessingRule.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.ID == ID);
+                List<wbm_common.DataObjects.ProcessingRule.dbRowExtended> ProcessingRuleDb = await (from ProcessingRule in _dbContext.ProcessingRule.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && x.ID == ID)
+                                                                                          join site in _dbContext.Site.AsNoTracking()
+                                                                                              on ProcessingRule.SiteID equals site.ID into sitePR 
+                                                                                                    from SPR in sitePR.DefaultIfEmpty()
+                                                                                          join company in _dbContext.Company.AsNoTracking()
+                                                                                              on ProcessingRule.CompanyID equals company.ID into companyPR 
+                                                                                                    from CPR in companyPR.DefaultIfEmpty()
+                                                                                          join processingRuleDefn in _dbContext.ProcessingRuleDefn.AsNoTracking()
+                                                                                              on ProcessingRule.ProcessingRuleDefnID equals processingRuleDefn.ID into processingRuleDefnPR 
+                                                                                                    from PRDPR in processingRuleDefnPR.DefaultIfEmpty()
+                                                                                          join processCategory in _dbContext.ProcessCategory.AsNoTracking()
+                                                                                              on ProcessingRule.ProcessCategoryID equals processCategory.ID into processCategoryPR 
+                                                                                                    from PRCPR in processCategoryPR.DefaultIfEmpty()
+                                                                                          join process in _dbContext.Process.AsNoTracking()
+                                                                                              on ProcessingRule.ProcessID equals process.ID into processPR from PPR in processPR.DefaultIfEmpty()
+                                                                                          join rateFunction in _dbContext.RateFunction.AsNoTracking()
+                                                                                              on ProcessingRule.RateFunctionID equals rateFunction.ID into rateFunctionPR 
+                                                                                                    from RFPR in rateFunctionPR.DefaultIfEmpty()
+                                                                                          join ProcessingRuleProcess in _dbContext.ProcessingRuleProcess.AsNoTracking()
+                                                                                              on ProcessingRule.ProcessID equals ProcessingRuleProcess.ID into ProcessingRuleProcessPR 
+                                                                                                    from PRPPR in ProcessingRuleProcessPR.DefaultIfEmpty()
+                                                                                          join ProcessingRuleTriggerCondition in _dbContext.ProcessingRuleTriggerCondition.AsNoTracking()
+                                                                                              on ProcessingRule.ProcessID equals ProcessingRuleTriggerCondition.ID into ProcessingRuleTriggerConditionPR 
+                                                                                                    from PRTCPR in ProcessingRuleTriggerConditionPR.DefaultIfEmpty()
 
-                if (ProcessingRule == null)
-                    return Result.Success<List<wbm_common.DataObjects.ProcessingRule.dbRow>>(new List<wbm_common.DataObjects.ProcessingRule.dbRow>());
+                                                                                          select new ProcessingRule.dbRowExtended
+                                                                                          {
+                                                                                              ID = ProcessingRule.ID,
+                                                                                              CompanyID = ProcessingRule.CompanyID,
+                                                                                              SiteID = ProcessingRule.SiteID,
+                                                                                              ProcessingRuleDefnID = ProcessingRule.ProcessingRuleDefnID,
+                                                                                              ProcessCategoryID = ProcessingRule.ProcessCategoryID,
+                                                                                              ProcessID = ProcessingRule.ProcessID,
+                                                                                              SortOrder = ProcessingRule.SortOrder,
+                                                                                              RateFunctionID = ProcessingRule.RateFunctionID,
+                                                                                              DeletedFlag = ProcessingRule.DeletedFlag,
+                                                                                              CreatedDateTime = ProcessingRule.CreatedDateTime,
+                                                                                              CreatedMethod = ProcessingRule.CreatedMethod,
+                                                                                              CreatedUserID = ProcessingRule.CreatedUserID,
+                                                                                              LastAmendedDateTime = ProcessingRule.LastAmendedDateTime,
+                                                                                              LastAmendedMethod = ProcessingRule.LastAmendedMethod,
+                                                                                              LastAmendedUserID = ProcessingRule.LastAmendedUserID,
+
+                                                                                              Site_PublicID = SPR.PublicID,
+                                                                                              Company_ShortName = CPR.ShortName,
+                                                                                              ProcessingRuleDefn_PublicID = PRDPR.PublicID,
+                                                                                              ProcessCategory_PublicID = PRCPR.PublicID,
+                                                                                              Process_PublicID = PPR.PublicID,
+                                                                                              RateFunction_PublicID = RFPR.PublicID,
+                                                                                              ProcessingRuleTriggerCondition_PublicID = PRPPR.PublicID,
+                                                                                              ProcessingRuleProcess_PublicID = PRTCPR.PublicID
+                                                                                          }).ToListAsync();
+
+                if (ProcessingRuleDb == null)
+                    return Result.Success<List<wbm_common.DataObjects.ProcessingRule.dbRowExtended>>(new List<wbm_common.DataObjects.ProcessingRule.dbRowExtended>());
                 else
-                    return Result.Success<List<wbm_common.DataObjects.ProcessingRule.dbRow>>(new List<wbm_common.DataObjects.ProcessingRule.dbRow> { ProcessingRule });
+                    return Result.Success<List<wbm_common.DataObjects.ProcessingRule.dbRowExtended>>(ProcessingRuleDb);
             }
             catch (Exception ex)
             {
-                logger.Error("ProcessingRule_SearchByID - " + ID.ToString() + ": " + ex);
-                return Result.Exception<List<wbm_common.DataObjects.ProcessingRule.dbRow>>("Internal Exception occured");
+                logger.Error("ProcessingRule_ListByID - " + ID.ToString() + ": " + ex);
+                return Result.Exception<List<wbm_common.DataObjects.ProcessingRule.dbRowExtended>>("Internal Exception occured");
+            }
+        }
+        public async Task<Result<List<wbm_common.DataObjects.ProcessingRule.dbRowExtended>>> ProcessingRule_ListByProcessingRuleDefnID(int ProcessingRuleDefnID)
+        {
+            try
+            {
+                List<wbm_common.DataObjects.ProcessingRule.dbRowExtended> ProcessingRuleDb = await (from ProcessingRule in _dbContext.ProcessingRule.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag && x.ProcessingRuleDefnID == ProcessingRuleDefnID)
+                                                                                                    join site in _dbContext.Site.AsNoTracking()
+                                                                                                        on ProcessingRule.SiteID equals site.ID into sitePR
+                                                                                                    from SPR in sitePR.DefaultIfEmpty()
+                                                                                                    join company in _dbContext.Company.AsNoTracking()
+                                                                                                        on ProcessingRule.CompanyID equals company.ID into companyPR
+                                                                                                    from CPR in companyPR.DefaultIfEmpty()
+                                                                                                    join processingRuleDefn in _dbContext.ProcessingRuleDefn.AsNoTracking()
+                                                                                                        on ProcessingRule.ProcessingRuleDefnID equals processingRuleDefn.ID into processingRuleDefnPR
+                                                                                                    from PRDPR in processingRuleDefnPR.DefaultIfEmpty()
+                                                                                                    join processCategory in _dbContext.ProcessCategory.AsNoTracking()
+                                                                                                        on ProcessingRule.ProcessCategoryID equals processCategory.ID into processCategoryPR
+                                                                                                    from PRCPR in processCategoryPR.DefaultIfEmpty()
+                                                                                                    join process in _dbContext.Process.AsNoTracking()
+                                                                                                        on ProcessingRule.ProcessID equals process.ID into processPR
+                                                                                                    from PPR in processPR.DefaultIfEmpty()
+                                                                                                    join rateFunction in _dbContext.RateFunction.AsNoTracking()
+                                                                                                        on ProcessingRule.RateFunctionID equals rateFunction.ID into rateFunctionPR
+                                                                                                    from RFPR in rateFunctionPR.DefaultIfEmpty()
+                                                                                                    join ProcessingRuleProcess in _dbContext.ProcessingRuleProcess.AsNoTracking()
+                                                                                                        on ProcessingRule.ProcessID equals ProcessingRuleProcess.ID into ProcessingRuleProcessPR
+                                                                                                    from PRPPR in ProcessingRuleProcessPR.DefaultIfEmpty()
+                                                                                                    join ProcessingRuleTriggerCondition in _dbContext.ProcessingRuleTriggerCondition.AsNoTracking()
+                                                                                                        on ProcessingRule.ProcessID equals ProcessingRuleTriggerCondition.ID into ProcessingRuleTriggerConditionPR
+                                                                                                    from PRTCPR in ProcessingRuleTriggerConditionPR.DefaultIfEmpty()
+
+                                                                                                    select new ProcessingRule.dbRowExtended
+                                                                                                    {
+                                                                                                        ID = ProcessingRule.ID,
+                                                                                                        CompanyID = ProcessingRule.CompanyID,
+                                                                                                        SiteID = ProcessingRule.SiteID,
+                                                                                                        ProcessingRuleDefnID = ProcessingRule.ProcessingRuleDefnID,
+                                                                                                        ProcessCategoryID = ProcessingRule.ProcessCategoryID,
+                                                                                                        ProcessID = ProcessingRule.ProcessID,
+                                                                                                        SortOrder = ProcessingRule.SortOrder,
+                                                                                                        RateFunctionID = ProcessingRule.RateFunctionID,
+                                                                                                        DeletedFlag = ProcessingRule.DeletedFlag,
+                                                                                                        CreatedDateTime = ProcessingRule.CreatedDateTime,
+                                                                                                        CreatedMethod = ProcessingRule.CreatedMethod,
+                                                                                                        CreatedUserID = ProcessingRule.CreatedUserID,
+                                                                                                        LastAmendedDateTime = ProcessingRule.LastAmendedDateTime,
+                                                                                                        LastAmendedMethod = ProcessingRule.LastAmendedMethod,
+                                                                                                        LastAmendedUserID = ProcessingRule.LastAmendedUserID,
+
+                                                                                                        Site_PublicID = SPR.PublicID,
+                                                                                                        Company_ShortName = CPR.ShortName,
+                                                                                                        ProcessingRuleDefn_PublicID = PRDPR.PublicID,
+                                                                                                        ProcessCategory_PublicID = PRCPR.PublicID,
+                                                                                                        Process_PublicID = PPR.PublicID,
+                                                                                                        RateFunction_PublicID = RFPR.PublicID,
+                                                                                                        ProcessingRuleTriggerCondition_PublicID = PRPPR.PublicID,
+                                                                                                        ProcessingRuleProcess_PublicID = PRTCPR.PublicID
+                                                                                                    }).ToListAsync();
+
+                if (ProcessingRuleDb == null)
+                    return Result.Success<List<wbm_common.DataObjects.ProcessingRule.dbRowExtended>>(new List<wbm_common.DataObjects.ProcessingRule.dbRowExtended>());
+                else
+                    return Result.Success<List<wbm_common.DataObjects.ProcessingRule.dbRowExtended>>(ProcessingRuleDb);
+            }
+            catch (Exception ex)
+            {
+                logger.Error("ProcessingRule_ListByProcessingRuleDefnID - " + ProcessingRuleDefnID.ToString() + ": " + ex);
+                return Result.Exception<List<wbm_common.DataObjects.ProcessingRule.dbRowExtended>>("Internal Exception occured");
             }
         }
 
@@ -84,12 +495,13 @@ namespace WBM_API.WBM_API_DB
         {
             try
             {
-                wbm_common.DataObjects.ProcessingRule.dbRow ProcessingRule = await _dbContext.ProcessingRule.AsNoTracking().FirstOrDefaultAsync(x => x.ID == ID);
+                wbm_common.DataObjects.ProcessingRule.dbRow ProcessingRuleDb = await _dbContext.ProcessingRule.AsNoTracking()
+                                                                        .Where(x => x.ID == ID).FirstOrDefaultAsync();
 
-                if (ProcessingRule == null)
+                if (ProcessingRuleDb == null)
                     return Result.Failure<wbm_common.DataObjects.ProcessingRule.dbRow>("ProcessingRule not found : " + ID.ToString());
                 else
-                    return Result.Success<wbm_common.DataObjects.ProcessingRule.dbRow>(ProcessingRule);
+                    return Result.Success<wbm_common.DataObjects.ProcessingRule.dbRow>(ProcessingRuleDb);
             }
             catch (Exception ex)
             {
@@ -98,33 +510,87 @@ namespace WBM_API.WBM_API_DB
             }
         }
 
-        public async Task<Result<List<wbm_common.DataObjects.ProcessingRule.dbRow>>> ProcessingRule_List()
+        public async Task<Result<List<wbm_common.DataObjects.ProcessingRule.dbRowExtended>>> ProcessingRule_List()
         {
             try
             {
-                List<wbm_common.DataObjects.ProcessingRule.dbRow> ProcessingRules = await _dbContext.ProcessingRule.AsNoTracking().Where(x => !x.DeletedFlag).ToListAsync();
+                List<wbm_common.DataObjects.ProcessingRule.dbRowExtended> ProcessingRules = await (from ProcessingRule in _dbContext.ProcessingRule.AsNoTracking()
+                                                                        .Where(x => !x.DeletedFlag)
+                                                                                                   join site in _dbContext.Site.AsNoTracking()
+                                                                                                       on ProcessingRule.SiteID equals site.ID into sitePR
+                                                                                                   from SPR in sitePR.DefaultIfEmpty()
+                                                                                                   join company in _dbContext.Company.AsNoTracking()
+                                                                                                       on ProcessingRule.CompanyID equals company.ID into companyPR
+                                                                                                   from CPR in companyPR.DefaultIfEmpty()
+                                                                                                   join processingRuleDefn in _dbContext.ProcessingRuleDefn.AsNoTracking()
+                                                                                                       on ProcessingRule.ProcessingRuleDefnID equals processingRuleDefn.ID into processingRuleDefnPR
+                                                                                                   from PRDPR in processingRuleDefnPR.DefaultIfEmpty()
+                                                                                                   join processCategory in _dbContext.ProcessCategory.AsNoTracking()
+                                                                                                       on ProcessingRule.ProcessCategoryID equals processCategory.ID into processCategoryPR
+                                                                                                   from PRCPR in processCategoryPR.DefaultIfEmpty()
+                                                                                                   join process in _dbContext.Process.AsNoTracking()
+                                                                                                       on ProcessingRule.ProcessID equals process.ID into processPR
+                                                                                                   from PPR in processPR.DefaultIfEmpty()
+                                                                                                   join rateFunction in _dbContext.RateFunction.AsNoTracking()
+                                                                                                       on ProcessingRule.RateFunctionID equals rateFunction.ID into rateFunctionPR
+                                                                                                   from RFPR in rateFunctionPR.DefaultIfEmpty()
+                                                                                                   join ProcessingRuleProcess in _dbContext.ProcessingRuleProcess.AsNoTracking()
+                                                                                                       on ProcessingRule.ProcessID equals ProcessingRuleProcess.ID into ProcessingRuleProcessPR
+                                                                                                   from PRPPR in ProcessingRuleProcessPR.DefaultIfEmpty()
+                                                                                                   join ProcessingRuleTriggerCondition in _dbContext.ProcessingRuleTriggerCondition.AsNoTracking()
+                                                                                                       on ProcessingRule.ProcessID equals ProcessingRuleTriggerCondition.ID into ProcessingRuleTriggerConditionPR
+                                                                                                   from PRTCPR in ProcessingRuleTriggerConditionPR.DefaultIfEmpty()
 
-                return Result.Success<List<wbm_common.DataObjects.ProcessingRule.dbRow>>(ProcessingRules);
+                                                                                                   select new ProcessingRule.dbRowExtended
+                                                                                                   {
+                                                                                                       ID = ProcessingRule.ID,
+                                                                                                       CompanyID = ProcessingRule.CompanyID,
+                                                                                                       SiteID = ProcessingRule.SiteID,
+                                                                                                       ProcessingRuleDefnID = ProcessingRule.ProcessingRuleDefnID,
+                                                                                                       ProcessCategoryID = ProcessingRule.ProcessCategoryID,
+                                                                                                       ProcessID = ProcessingRule.ProcessID,
+                                                                                                       SortOrder = ProcessingRule.SortOrder,
+                                                                                                       RateFunctionID = ProcessingRule.RateFunctionID,
+                                                                                                       DeletedFlag = ProcessingRule.DeletedFlag,
+                                                                                                       CreatedDateTime = ProcessingRule.CreatedDateTime,
+                                                                                                       CreatedMethod = ProcessingRule.CreatedMethod,
+                                                                                                       CreatedUserID = ProcessingRule.CreatedUserID,
+                                                                                                       LastAmendedDateTime = ProcessingRule.LastAmendedDateTime,
+                                                                                                       LastAmendedMethod = ProcessingRule.LastAmendedMethod,
+                                                                                                       LastAmendedUserID = ProcessingRule.LastAmendedUserID,
+
+                                                                                                       Site_PublicID = SPR.PublicID,
+                                                                                                       Company_ShortName = CPR.ShortName,
+                                                                                                       ProcessingRuleDefn_PublicID = PRDPR.PublicID,
+                                                                                                       ProcessCategory_PublicID = PRCPR.PublicID,
+                                                                                                       Process_PublicID = PPR.PublicID,
+                                                                                                       RateFunction_PublicID = RFPR.PublicID,
+                                                                                                       ProcessingRuleTriggerCondition_PublicID = PRPPR.PublicID,
+                                                                                                       ProcessingRuleProcess_PublicID = PRTCPR.PublicID
+                                                                                                   }).ToListAsync();
+
+                return Result.Success<List<wbm_common.DataObjects.ProcessingRule.dbRowExtended>>(ProcessingRules);
             }
             catch (Exception ex)
             {
                 logger.Error("ProcessingRule_List: " + ex);
 
-                return Result.Exception<List<wbm_common.DataObjects.ProcessingRule.dbRow>>("Internal Exception occured");
+                return Result.Exception<List<wbm_common.DataObjects.ProcessingRule.dbRowExtended>>("Internal Exception occured");
             }
         }
 
-        public async Task<Result<List<wbm_common.DataObjects.ProcessingRule.dbRow>>> ProcessingRule_ListBySql(string sqlString, List<SqlParameter> ListSqlParameter)
+        // TODO this currently fails since trigger id stuff is unclear, will do last/later
+        public async Task<Result<List<wbm_common.DataObjects.ProcessingRule.dbRowExtended>>> ProcessingRule_ListBySql(string sqlString, List<SqlParameter> ListSqlParameter)
         {
             try
             {
-                List<wbm_common.DataObjects.ProcessingRule.dbRow> ProcessingRules = await _dbContext.ProcessingRule.FromSqlRaw(sqlString, ListSqlParameter.ToArray()).ToListAsync();
-                return Result.Success<List<wbm_common.DataObjects.ProcessingRule.dbRow>>(ProcessingRules);
+                List<wbm_common.DataObjects.ProcessingRule.dbRowExtended> ProcessingRules = await _dbContext.Database.SqlQueryRaw<wbm_common.DataObjects.ProcessingRule.dbRowExtended>(sqlString, ListSqlParameter.ToArray()).ToListAsync();
+                return Result.Success<List<wbm_common.DataObjects.ProcessingRule.dbRowExtended>>(ProcessingRules);
             }
             catch (Exception ex)
             {
                 logger.Error("ProcessingRule_ListBySql -  " + sqlString + " : ex = " + ex);
-                return Result.Exception<List<wbm_common.DataObjects.ProcessingRule.dbRow>>("Internal Exception occured");
+                return Result.Exception<List<wbm_common.DataObjects.ProcessingRule.dbRowExtended>>("Internal Exception occured");
             }
         }
         #endregion
@@ -307,27 +773,27 @@ namespace WBM_API.WBM_API_DB
             }
         }
 
-        public async Task<Result<wbm_common.DataObjects.ProcessingRuleProcess.dbRow>> ProcessingRuleProcess_SearchByID(int ID)
+        public async Task<Result<wbm_common.DataObjects.ProcessingRuleProcess.dbRow>> ProcessingRuleProcess_SearchByPublicID(string PublicID)
         {
             try
             {
-                wbm_common.DataObjects.ProcessingRuleProcess.dbRow ProcessingRuleProcess = await _dbContext.ProcessingRuleProcess.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.ID == ID);
+                wbm_common.DataObjects.ProcessingRuleProcess.dbRow ProcessingRuleProcess = await _dbContext.ProcessingRuleProcess.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.PublicID == PublicID);
 
                 if (ProcessingRuleProcess == null)
-                    return Result.Failure<wbm_common.DataObjects.ProcessingRuleProcess.dbRow>("ProcessingRuleProcess not found : " + ID.ToString());
+                    return Result.Failure<wbm_common.DataObjects.ProcessingRuleProcess.dbRow>("ProcessingRuleProcess not found : " + PublicID);
                 else
                     return Result.Success<wbm_common.DataObjects.ProcessingRuleProcess.dbRow>(ProcessingRuleProcess);
 
             }
             catch (Exception ex)
             {
-                logger.Error("ProcessingRuleProcess_SearchByID - " + ID.ToString() + ": " + ex);
+                logger.Error("ProcessingRuleProcess_SearchByPublicID - " + PublicID + ": " + ex);
                 return Result.Exception<wbm_common.DataObjects.ProcessingRuleProcess.dbRow>("Internal Exception occured");
             }
         }
 
         // read and search are different because of the deleted flag
-        public async Task<Result<List<wbm_common.DataObjects.ProcessingRuleProcess.dbRow>>> ProcessingRuleProcessList_SearchByID(int ID)
+        public async Task<Result<List<wbm_common.DataObjects.ProcessingRuleProcess.dbRow>>> ProcessingRuleProcess_ListByID(int ID)
         {
             try
             {
@@ -340,7 +806,7 @@ namespace WBM_API.WBM_API_DB
             }
             catch (Exception ex)
             {
-                logger.Error("ProcessingRuleProcess_SearchByID - " + ID.ToString() + ": " + ex);
+                logger.Error("ProcessingRuleProcess_ListByID - " + ID.ToString() + ": " + ex);
                 return Result.Exception<List<wbm_common.DataObjects.ProcessingRuleProcess.dbRow>>("Internal Exception occured");
             }
         }
@@ -451,28 +917,28 @@ namespace WBM_API.WBM_API_DB
             }
         }
 
-        public async Task<Result<wbm_common.DataObjects.ProcessingRuleTriggerCondition.dbRow>> ProcessingRuleTriggerCondition_SearchByID(int ID)
+        public async Task<Result<wbm_common.DataObjects.ProcessingRuleTriggerCondition.dbRow>> ProcessingRuleTriggerCondition_SearchByPublicID(string PublicID)
         {
             try
             {
-                wbm_common.DataObjects.ProcessingRuleTriggerCondition.dbRow ProcessingRuleTriggerCondition = await _dbContext.ProcessingRuleTriggerCondition.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.ID == ID);
+                wbm_common.DataObjects.ProcessingRuleTriggerCondition.dbRow ProcessingRuleTriggerCondition = await _dbContext.ProcessingRuleTriggerCondition.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.PublicID == PublicID);
 
                 if (ProcessingRuleTriggerCondition == null)
-                    return Result.Failure<wbm_common.DataObjects.ProcessingRuleTriggerCondition.dbRow>("ProcessingRuleTriggerCondition not found : " + ID.ToString());
+                    return Result.Failure<wbm_common.DataObjects.ProcessingRuleTriggerCondition.dbRow>("ProcessingRuleTriggerCondition not found : " + PublicID);
                 else
                     return Result.Success<wbm_common.DataObjects.ProcessingRuleTriggerCondition.dbRow>(ProcessingRuleTriggerCondition);
 
             }
             catch (Exception ex)
             {
-                logger.Error("ProcessingRuleTriggerCondition_SearchByID - " + ID.ToString() + ": " + ex);
+                logger.Error("ProcessingRuleTriggerCondition_SearchByPublicID - " + PublicID + ": " + ex);
                 return Result.Exception<wbm_common.DataObjects.ProcessingRuleTriggerCondition.dbRow>("Internal Exception occured");
             }
         }
 
         // read and search are different because of the deleted flag
         //because of the way the results return work, it makes more sense to keep the result format for all and just have this be a list instead of a single return
-        public async Task<Result<List<wbm_common.DataObjects.ProcessingRuleTriggerCondition.dbRow>>> ProcessingRuleTriggerConditionList_SearchByID(int ID)
+        public async Task<Result<List<wbm_common.DataObjects.ProcessingRuleTriggerCondition.dbRow>>> ProcessingRuleTriggerCondition_ListByID(int ID)
         {
             try
             {
@@ -485,7 +951,7 @@ namespace WBM_API.WBM_API_DB
             }
             catch (Exception ex)
             {
-                logger.Error("ProcessingRuleTriggerCondition_SearchByID - " + ID.ToString() + ": " + ex);
+                logger.Error("ProcessingRuleTriggerCondition_ListByID - " + ID.ToString() + ": " + ex);
                 return Result.Exception<List<wbm_common.DataObjects.ProcessingRuleTriggerCondition.dbRow>>("Internal Exception occured");
             }
         }

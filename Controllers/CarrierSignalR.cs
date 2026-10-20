@@ -5,8 +5,7 @@ using NLog.Web;
 using System.IdentityModel.Tokens.Jwt;
 using WBM_API.Helpers;
 using WBM_API.Helpers.Excel;
-using WBM_API.Models;
-using WBM_API.Models.ResponseObjects;
+using wbm_common.NonDatabaseObjects;
 using WBM_API.WBM_API_DB;
 using static WBM_API.Helpers.ControllerHelper;
 using static WBM_API.Helpers.LongRunProcessHelper;
@@ -98,7 +97,7 @@ sealed class CarrierSignalR : Hub//<IChatClientSignalRInterface>
             wbm_common.DataObjects.Carrier.Search _carrierSearchData = (wbm_common.DataObjects.Carrier.Search)unpackReturn.genericObject;
             wbm_common.DataObjects.LongRunProcessHeader.dbRow longRunProcessHeader = unpackReturn.LRPH;
 
-            Result<List<wbm_common.DataObjects.Carrier.dbRow>> carrierSearchResult = await CarrierHelper.ExecuteSearch(_carrierSearchData, _WBMDB, Clients, callBackToClient, longRunProcessHeader);
+            Result<List<wbm_common.DataObjects.Carrier.dbRowExtended>> carrierSearchResult = await CarrierHelper.ExecuteSearch(_carrierSearchData, _WBMDB, Clients, callBackToClient, longRunProcessHeader);
 
             if (carrierSearchResult.IsException || carrierSearchResult.IsFailure)
             {

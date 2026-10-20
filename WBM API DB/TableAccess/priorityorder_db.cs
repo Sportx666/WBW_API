@@ -1,6 +1,7 @@
 ﻿using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using WBM_API.Models;
+using wbm_common.DataObjects;
+using wbm_common.NonDatabaseObjects;
 
 namespace WBM_API.WBM_API_DB
 {
@@ -44,7 +45,7 @@ namespace WBM_API.WBM_API_DB
         {
             try
             {
-                wbm_common.DataObjects.PriorityOrder.dbRow PriorityOrder = await _dbContext.PriorityOrder.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.SiteID == SiteID);
+                wbm_common.DataObjects.PriorityOrder.dbRow PriorityOrder = await _dbContext.PriorityOrder.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && (x.SiteID == SiteID || x.SiteID == 0));
 
                 if (PriorityOrder == null)
                     return Result.Success<List<wbm_common.DataObjects.PriorityOrder.dbRow>>(new List<wbm_common.DataObjects.PriorityOrder.dbRow>());
@@ -58,28 +59,8 @@ namespace WBM_API.WBM_API_DB
             }
         }
 
-        // read and search are different because of the deleted flag
-        public async Task<Result<wbm_common.DataObjects.PriorityOrder.dbRow>> PriorityOrder_SearchByID(int ID)
-        {
-            try
-            {
-                wbm_common.DataObjects.PriorityOrder.dbRow PriorityOrder = await _dbContext.PriorityOrder.AsNoTracking().FirstOrDefaultAsync(x => !x.DeletedFlag && x.ID == ID);
-
-                if (PriorityOrder == null)
-                    return Result.Failure<wbm_common.DataObjects.PriorityOrder.dbRow>("PriorityOrder not found : " + ID.ToString());
-                else
-                    return Result.Success<wbm_common.DataObjects.PriorityOrder.dbRow>(PriorityOrder);
-
-            }
-            catch (Exception ex)
-            {
-                logger.Error("PriorityOrder_SearchByID - " + ID.ToString() + ": " + ex);
-                return Result.Exception<wbm_common.DataObjects.PriorityOrder.dbRow>("Internal Exception occured");
-            }
-        }
-
         //because of the way the results return work, it makes more sense to keep the result format for all and just have this be a list instead of a single return
-        public async Task<Result<List<wbm_common.DataObjects.PriorityOrder.dbRow>>> PriorityOrderList_SearchByID(int ID)
+        public async Task<Result<List<wbm_common.DataObjects.PriorityOrder.dbRow>>> PriorityOrder_ListByID(int ID)
         {
             try
             {
@@ -92,7 +73,7 @@ namespace WBM_API.WBM_API_DB
             }
             catch (Exception ex)
             {
-                logger.Error("PriorityOrder_SearchByID - " + ID.ToString() + ": " + ex);
+                logger.Error("PriorityOrder_ListByID - " + ID.ToString() + ": " + ex);
                 return Result.Exception<List<wbm_common.DataObjects.PriorityOrder.dbRow>>("Internal Exception occured");
             }
         }
