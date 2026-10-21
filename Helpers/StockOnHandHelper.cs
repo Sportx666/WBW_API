@@ -384,8 +384,10 @@ namespace WBM_API.Helpers
                 transaction.CreateSavepoint("Start");
 
                 Boolean ErrorOccured = false;
-                foreach (wbm_common.DataObjects.StockOnHand.dbRow saveRow in saveObject.ListdbRow_instance)
+                int RowCount = saveObject.ListdbRow_instance.Count();
+                for (int i = 0; i < RowCount; i++)
                 {
+                    wbm_common.DataObjects.StockOnHand.dbRow saveRow = saveObject.ListdbRow_instance[i];
                     wbm_common.DataObjects.StockOnHand rowObject = new wbm_common.DataObjects.StockOnHand();
                     rowObject.dbRow_instance = saveRow;
                     rowObject.CalledFrom = saveObject.CalledFrom;
@@ -395,15 +397,21 @@ namespace WBM_API.Helpers
                     if (!saveClass.Save())
                     {
                         ErrorOccured = true;
-                        ErrorMessage = "StockOnHand row (LocationID " + saveRow.LocationID + ", StockID " + saveRow.StockID + ") : " + saveClass.ErrorMessage;
+                        // Row number is 1 based so the caller can find the row in the list it sent
+                        ErrorMessage = "Row " + (i + 1) + " of " + RowCount + " (OwnerID " + saveRow.OwnerID + ", LocationID " + saveRow.LocationID
+                            + ", StockID " + saveRow.StockID + "): " + saveClass.ErrorMessage;
                         ReturnState = saveClass.ReturnState == 400 ? 400 : 500;
                         break;
                     }
+
+                    // Stop tracking saved rows so each insert doesn't get slower as the list grows
+                    _WBMDB.dbContext.Entry(saveRow).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
                 }
 
                 if (!ErrorOccured)
                 {
                     transaction.Commit();
+                    logger.Info("StockOnHandSaveList : saved " + RowCount + " rows");
                     SavedSuccessfully = true;
                     return true;
                 }
