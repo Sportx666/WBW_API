@@ -26,6 +26,8 @@ namespace WBM_API.Helpers.Excel
         public List<wbm_common.DataObjects.Stock.dbRowExtended> stocks = null;
         public List<wbm_common.DataObjects.Location.dbRowExtended> locations = null;
         public List<wbm_common.DataObjects.RateCode.dbRow> ratecodes = null;
+        public List<wbm_common.DataObjects.ZoneProcessing.dbRowExtended> zones = null;
+        public List<wbm_common.DataObjects.PalletType.dbRowExtended> pallettypes = null;
         public Func<IHubCallerClients, WBMDatabase, string, int, int, wbm_common.DataObjects.LongRunProcessHeader.dbRow, Task<string>> CallBackStatusFunction { get; set; }
         private IHubCallerClients Clients;
         public wbm_common.DataObjects.LongRunProcessHeader.dbRow lrph { get; set; }
@@ -99,6 +101,8 @@ namespace WBM_API.Helpers.Excel
             List<int> ListCompanyIDs = StockOnHands.Select(x => x.CompanyID).Distinct().ToList();
             List<int> ListSiteID = StockOnHands.Select(x => x.SiteID).Distinct().ToList();
             List<int> ListUserID = StockOnHands.Select(x => x.CreatedUserID).Union(StockOnHands.Select(x => x.LastAmendedUserID)).Distinct().ToList();
+            List<int> ListZoneProcessingIDs = StockOnHands.Select(x => x.ZoneProcessingID).Distinct().ToList();
+            List<int> ListPalletTypeIDs = StockOnHands.Select(x => x.PalletTypeID).Distinct().ToList();
 
             if (ListLocationIDs.Count > 0)
             {
@@ -188,6 +192,28 @@ namespace WBM_API.Helpers.Excel
                 users = userResults.Value;
             }
 
+            if (ListZoneProcessingIDs.Count > 0)
+            {
+                Result<List<wbm_common.DataObjects.ZoneProcessing.dbRowExtended>> zonesResults = _WBMDB.ZoneProcessing_ListByListIDs(ListZoneProcessingIDs).GetAwaiter().GetResult();
+                if (zonesResults.IsFailure || zonesResults.IsException)
+                {
+                    ErrorMessage = ErrorCodes.GeneralDB.ToString();
+                    return false;
+                }
+                zones = zonesResults.Value;
+            }
+
+            if (ListPalletTypeIDs.Count > 0)
+            {
+                Result<List<wbm_common.DataObjects.PalletType.dbRowExtended>> pallettypesResults = _WBMDB.PalletType_ListByListIDs(ListPalletTypeIDs).GetAwaiter().GetResult();
+                if (pallettypesResults.IsFailure || pallettypesResults.IsException)
+                {
+                    ErrorMessage = ErrorCodes.GeneralDB.ToString();
+                    return false;
+                }
+                pallettypes = pallettypesResults.Value;
+            }
+
             return true;
         }
 
@@ -197,8 +223,8 @@ namespace WBM_API.Helpers.Excel
 
             #region header
             StockOnHandWS.View.FreezePanes(2, 1);
-            StockOnHandWS.Cells[1, 1, 1, 22].Style.Font.Bold = true;
-            StockOnHandWS.Cells[1, 1, 1, 22].Style.Border.Bottom.Style = ExcelBorderStyle.Thick;
+            StockOnHandWS.Cells[1, 1, 1, 34].Style.Font.Bold = true;
+            StockOnHandWS.Cells[1, 1, 1, 34].Style.Border.Bottom.Style = ExcelBorderStyle.Thick;
             StockOnHandWS.Column(1).Width = 25;
             StockOnHandWS.Column(2).Width = 25;
             StockOnHandWS.Column(3).Width = 25;
@@ -223,6 +249,19 @@ namespace WBM_API.Helpers.Excel
             StockOnHandWS.Column(20).Width = 25;
             StockOnHandWS.Column(21).Width = 25;
             StockOnHandWS.Column(22).Width = 15;
+            StockOnHandWS.Column(23).Width = 25;
+            StockOnHandWS.Column(24).Width = 10;
+            StockOnHandWS.Column(25).Width = 25;
+            StockOnHandWS.Column(26).Width = 20;
+            StockOnHandWS.Column(27).Width = 15;
+            StockOnHandWS.Column(27).Style.Numberformat.Format = "dd/mm/yy";
+            StockOnHandWS.Column(28).Width = 15;
+            StockOnHandWS.Column(29).Width = 15;
+            StockOnHandWS.Column(30).Width = 15;
+            StockOnHandWS.Column(31).Width = 15;
+            StockOnHandWS.Column(32).Width = 15;
+            StockOnHandWS.Column(33).Width = 10;
+            StockOnHandWS.Column(34).Width = 25;
 
             StockOnHandWS.Cells[1, 1].Value = "Company";
             StockOnHandWS.Cells[1, 2].Value = "Company Name";
@@ -246,6 +285,18 @@ namespace WBM_API.Helpers.Excel
             StockOnHandWS.Cells[1, 20].Value = "Last Amended User";
             StockOnHandWS.Cells[1, 21].Value = "Last Amended Name";
             StockOnHandWS.Cells[1, 22].Value = "Deleted Flag";
+            StockOnHandWS.Cells[1, 23].Value = "Pallet Number";
+            StockOnHandWS.Cells[1, 24].Value = "Zone";
+            StockOnHandWS.Cells[1, 25].Value = "Zone Description";
+            StockOnHandWS.Cells[1, 26].Value = "Status";
+            StockOnHandWS.Cells[1, 27].Value = "Use-by Date";
+            StockOnHandWS.Cells[1, 28].Value = "Lot Number";
+            StockOnHandWS.Cells[1, 29].Value = "Pallet Weight";
+            StockOnHandWS.Cells[1, 30].Value = "Pallet Width";
+            StockOnHandWS.Cells[1, 31].Value = "Pallet Depth";
+            StockOnHandWS.Cells[1, 32].Value = "Pallet Height";
+            StockOnHandWS.Cells[1, 33].Value = "Pallet Type";
+            StockOnHandWS.Cells[1, 34].Value = "Pallet Type Description";
             #endregion
 
             #region processing
@@ -327,6 +378,31 @@ namespace WBM_API.Helpers.Excel
                     StockOnHandWS.Cells[rc, 20].Value = "UserID: " + StockOnHands[i].LastAmendedUserID.ToString();
 
                 StockOnHandWS.Cells[rc, 22].Value = StockOnHands[i].DeletedFlag;
+                StockOnHandWS.Cells[rc, 23].Value = StockOnHands[i].PalletNumber;
+
+                if (zones.Any(x => x.ID == StockOnHands[i].ZoneProcessingID))
+                {
+                    StockOnHandWS.Cells[rc, 24].Value = zones.FirstOrDefault(x => x.ID == StockOnHands[i].ZoneProcessingID).ZoneNumber;
+                    StockOnHandWS.Cells[rc, 25].Value = zones.FirstOrDefault(x => x.ID == StockOnHands[i].ZoneProcessingID).Description;
+                }
+                else
+                    StockOnHandWS.Cells[rc, 24].Value = "ZoneProcessingID: " + StockOnHands[i].ZoneProcessingID.ToString();
+
+                StockOnHandWS.Cells[rc, 26].Value = StockOnHands[i].Status;
+                StockOnHandWS.Cells[rc, 27].Value = StockOnHands[i].UseByDate?.ToOADate();
+                StockOnHandWS.Cells[rc, 28].Value = StockOnHands[i].LotNumber;
+                StockOnHandWS.Cells[rc, 29].Value = StockOnHands[i].PalletWeight;
+                StockOnHandWS.Cells[rc, 30].Value = StockOnHands[i].PalletWidth;
+                StockOnHandWS.Cells[rc, 31].Value = StockOnHands[i].PalletDepth;
+                StockOnHandWS.Cells[rc, 32].Value = StockOnHands[i].PalletHeight;
+
+                if (pallettypes.Any(x => x.ID == StockOnHands[i].PalletTypeID))
+                {
+                    StockOnHandWS.Cells[rc, 33].Value = pallettypes.FirstOrDefault(x => x.ID == StockOnHands[i].PalletTypeID).PublicID;
+                    StockOnHandWS.Cells[rc, 34].Value = pallettypes.FirstOrDefault(x => x.ID == StockOnHands[i].PalletTypeID).Description;
+                }
+                else
+                    StockOnHandWS.Cells[rc, 33].Value = "PalletTypeID: " + StockOnHands[i].PalletTypeID.ToString();
 
                 rc++;
             }
