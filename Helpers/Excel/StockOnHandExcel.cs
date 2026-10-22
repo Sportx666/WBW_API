@@ -223,8 +223,8 @@ namespace WBM_API.Helpers.Excel
 
             #region header
             StockOnHandWS.View.FreezePanes(2, 1);
-            StockOnHandWS.Cells[1, 1, 1, 35].Style.Font.Bold = true;
-            StockOnHandWS.Cells[1, 1, 1, 35].Style.Border.Bottom.Style = ExcelBorderStyle.Thick;
+            StockOnHandWS.Cells[1, 1, 1, 34].Style.Font.Bold = true;
+            StockOnHandWS.Cells[1, 1, 1, 34].Style.Border.Bottom.Style = ExcelBorderStyle.Thick;
             StockOnHandWS.Column(1).Width = 25;
             StockOnHandWS.Column(2).Width = 25;
             StockOnHandWS.Column(3).Width = 25;
@@ -253,16 +253,15 @@ namespace WBM_API.Helpers.Excel
             StockOnHandWS.Column(24).Width = 10;
             StockOnHandWS.Column(25).Width = 25;
             StockOnHandWS.Column(26).Width = 20;
-            StockOnHandWS.Column(27).Width = 25;
+            StockOnHandWS.Column(27).Width = 15;
+            StockOnHandWS.Column(27).Style.Numberformat.Format = "dd/mm/yy";
             StockOnHandWS.Column(28).Width = 15;
-            StockOnHandWS.Column(28).Style.Numberformat.Format = "dd/mm/yy";
             StockOnHandWS.Column(29).Width = 15;
             StockOnHandWS.Column(30).Width = 15;
             StockOnHandWS.Column(31).Width = 15;
             StockOnHandWS.Column(32).Width = 15;
-            StockOnHandWS.Column(33).Width = 15;
-            StockOnHandWS.Column(34).Width = 10;
-            StockOnHandWS.Column(35).Width = 25;
+            StockOnHandWS.Column(33).Width = 10;
+            StockOnHandWS.Column(34).Width = 25;
 
             StockOnHandWS.Cells[1, 1].Value = "Company";
             StockOnHandWS.Cells[1, 2].Value = "Company Name";
@@ -290,15 +289,14 @@ namespace WBM_API.Helpers.Excel
             StockOnHandWS.Cells[1, 24].Value = "Zone";
             StockOnHandWS.Cells[1, 25].Value = "Zone Description";
             StockOnHandWS.Cells[1, 26].Value = "Status";
-            StockOnHandWS.Cells[1, 27].Value = "Conversion Code";
-            StockOnHandWS.Cells[1, 28].Value = "Use-by Date";
-            StockOnHandWS.Cells[1, 29].Value = "Lot Number";
-            StockOnHandWS.Cells[1, 30].Value = "Pallet Weight";
-            StockOnHandWS.Cells[1, 31].Value = "Pallet Width";
-            StockOnHandWS.Cells[1, 32].Value = "Pallet Depth";
-            StockOnHandWS.Cells[1, 33].Value = "Pallet Height";
-            StockOnHandWS.Cells[1, 34].Value = "Pallet Type";
-            StockOnHandWS.Cells[1, 35].Value = "Pallet Type Description";
+            StockOnHandWS.Cells[1, 27].Value = "Use-by Date";
+            StockOnHandWS.Cells[1, 28].Value = "Lot Number";
+            StockOnHandWS.Cells[1, 29].Value = "Pallet Weight";
+            StockOnHandWS.Cells[1, 30].Value = "Pallet Width";
+            StockOnHandWS.Cells[1, 31].Value = "Pallet Depth";
+            StockOnHandWS.Cells[1, 32].Value = "Pallet Height";
+            StockOnHandWS.Cells[1, 33].Value = "Pallet Type";
+            StockOnHandWS.Cells[1, 34].Value = "Pallet Type Description";
             #endregion
 
             #region processing
@@ -391,21 +389,20 @@ namespace WBM_API.Helpers.Excel
                     StockOnHandWS.Cells[rc, 24].Value = "ZoneProcessingID: " + StockOnHands[i].ZoneProcessingID.ToString();
 
                 StockOnHandWS.Cells[rc, 26].Value = StockOnHands[i].Status;
-                StockOnHandWS.Cells[rc, 27].Value = StockOnHands[i].ConversionCode;
-                StockOnHandWS.Cells[rc, 28].Value = StockOnHands[i].UseByDate?.ToOADate();
-                StockOnHandWS.Cells[rc, 29].Value = StockOnHands[i].LotNumber;
-                StockOnHandWS.Cells[rc, 30].Value = StockOnHands[i].PalletWeight;
-                StockOnHandWS.Cells[rc, 31].Value = StockOnHands[i].PalletWidth;
-                StockOnHandWS.Cells[rc, 32].Value = StockOnHands[i].PalletDepth;
-                StockOnHandWS.Cells[rc, 33].Value = StockOnHands[i].PalletHeight;
+                StockOnHandWS.Cells[rc, 27].Value = StockOnHands[i].UseByDate?.ToOADate();
+                StockOnHandWS.Cells[rc, 28].Value = StockOnHands[i].LotNumber;
+                StockOnHandWS.Cells[rc, 29].Value = StockOnHands[i].PalletWeight;
+                StockOnHandWS.Cells[rc, 30].Value = StockOnHands[i].PalletWidth;
+                StockOnHandWS.Cells[rc, 31].Value = StockOnHands[i].PalletDepth;
+                StockOnHandWS.Cells[rc, 32].Value = StockOnHands[i].PalletHeight;
 
                 if (pallettypes.Any(x => x.ID == StockOnHands[i].PalletTypeID))
                 {
-                    StockOnHandWS.Cells[rc, 34].Value = pallettypes.FirstOrDefault(x => x.ID == StockOnHands[i].PalletTypeID).PublicID;
-                    StockOnHandWS.Cells[rc, 35].Value = pallettypes.FirstOrDefault(x => x.ID == StockOnHands[i].PalletTypeID).Description;
+                    StockOnHandWS.Cells[rc, 33].Value = pallettypes.FirstOrDefault(x => x.ID == StockOnHands[i].PalletTypeID).PublicID;
+                    StockOnHandWS.Cells[rc, 34].Value = pallettypes.FirstOrDefault(x => x.ID == StockOnHands[i].PalletTypeID).Description;
                 }
                 else
-                    StockOnHandWS.Cells[rc, 34].Value = "PalletTypeID: " + StockOnHands[i].PalletTypeID.ToString();
+                    StockOnHandWS.Cells[rc, 33].Value = "PalletTypeID: " + StockOnHands[i].PalletTypeID.ToString();
 
                 rc++;
             }
