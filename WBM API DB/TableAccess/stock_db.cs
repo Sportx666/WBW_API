@@ -774,6 +774,15 @@ namespace WBM_API.WBM_API_DB
                                                                                               join StorageRateCodeFrom in _dbContext.StorageRateCodeFrom.AsNoTracking()
                                                                                           on StockOnHand.StorageRateCodeFromID equals StorageRateCodeFrom.ID into StorageRateCodeFromPR
                                                                                               from SRCPR in StorageRateCodeFromPR.DefaultIfEmpty()
+                                                                                              join ZoneProcessing in _dbContext.ZoneProcessing.AsNoTracking()
+                                                                                                  on StockOnHand.ZoneProcessingID equals ZoneProcessing.ID into ZoneProcessingPR
+                                                                                              from ZPPR in ZoneProcessingPR.DefaultIfEmpty()
+                                                                                              join PalletType in _dbContext.PalletType.AsNoTracking()
+                                                                                                  on StockOnHand.PalletTypeID equals PalletType.ID into PalletTypePR
+                                                                                              from PTPR in PalletTypePR.DefaultIfEmpty()
+                                                                                              join SecurityUser in _dbContext.Security_User.AsNoTracking()
+                                                                                                  on StockOnHand.CreatedUserID equals SecurityUser.ID into SecurityUserPR
+                                                                                              from SU in SecurityUserPR.DefaultIfEmpty()
 
                                                                                               select new wbm_common.DataObjects.StockOnHand.dbRowExtended
                                                                                               {
@@ -812,7 +821,10 @@ namespace WBM_API.WBM_API_DB
                                                                                                   Stock_ProductCode = StkPR.ProductCode,
                                                                                                   Location_PublicLocationID = LPR.PublicLocationID,
                                                                                                   RateCode_RateCode = RCPR.RateCode,
-                                                                                                  StorageRateCodeFrom_PublicID = SRCPR.PublicID
+                                                                                                  StorageRateCodeFrom_PublicID = SRCPR.PublicID,
+                                                                                                  ZoneProcessing_ZoneNumber = ZPPR.ZoneNumber,
+                                                                                                  PalletType_PublicID = PTPR.PublicID,
+                                                                                                  Created_UserPublicID = SU.PublicID
                                                                                               }).ToListAsync();
 
                 if (StockOnHandDb == null)
@@ -854,6 +866,15 @@ namespace WBM_API.WBM_API_DB
                                                                                               join StorageRateCodeFrom in _dbContext.StorageRateCodeFrom.AsNoTracking()
                                                                                           on StockOnHand.StorageRateCodeFromID equals StorageRateCodeFrom.ID into StorageRateCodeFromPR
                                                                                               from SRCPR in StorageRateCodeFromPR.DefaultIfEmpty()
+                                                                                              join ZoneProcessing in _dbContext.ZoneProcessing.AsNoTracking()
+                                                                                                  on StockOnHand.ZoneProcessingID equals ZoneProcessing.ID into ZoneProcessingPR
+                                                                                              from ZPPR in ZoneProcessingPR.DefaultIfEmpty()
+                                                                                              join PalletType in _dbContext.PalletType.AsNoTracking()
+                                                                                                  on StockOnHand.PalletTypeID equals PalletType.ID into PalletTypePR
+                                                                                              from PTPR in PalletTypePR.DefaultIfEmpty()
+                                                                                              join SecurityUser in _dbContext.Security_User.AsNoTracking()
+                                                                                                  on StockOnHand.CreatedUserID equals SecurityUser.ID into SecurityUserPR
+                                                                                              from SU in SecurityUserPR.DefaultIfEmpty()
 
                                                                                               select new wbm_common.DataObjects.StockOnHand.dbRowExtended
                                                                                               {
@@ -892,7 +913,10 @@ namespace WBM_API.WBM_API_DB
                                                                                                   Stock_ProductCode = StkPR.ProductCode,
                                                                                                   Location_PublicLocationID = LPR.PublicLocationID,
                                                                                                   RateCode_RateCode = RCPR.RateCode,
-                                                                                                  StorageRateCodeFrom_PublicID = SRCPR.PublicID
+                                                                                                  StorageRateCodeFrom_PublicID = SRCPR.PublicID,
+                                                                                                  ZoneProcessing_ZoneNumber = ZPPR.ZoneNumber,
+                                                                                                  PalletType_PublicID = PTPR.PublicID,
+                                                                                                  Created_UserPublicID = SU.PublicID
                                                                                               }).ToListAsync();
 
                 if (StockOnHandDb == null)
@@ -935,6 +959,15 @@ namespace WBM_API.WBM_API_DB
                                                                                               join StorageRateCodeFrom in _dbContext.StorageRateCodeFrom.AsNoTracking()
                                                                                           on StockOnHand.StorageRateCodeFromID equals StorageRateCodeFrom.ID into StorageRateCodeFromPR
                                                                                               from SRCPR in StorageRateCodeFromPR.DefaultIfEmpty()
+                                                                                              join ZoneProcessing in _dbContext.ZoneProcessing.AsNoTracking()
+                                                                                                  on StockOnHand.ZoneProcessingID equals ZoneProcessing.ID into ZoneProcessingPR
+                                                                                              from ZPPR in ZoneProcessingPR.DefaultIfEmpty()
+                                                                                              join PalletType in _dbContext.PalletType.AsNoTracking()
+                                                                                                  on StockOnHand.PalletTypeID equals PalletType.ID into PalletTypePR
+                                                                                              from PTPR in PalletTypePR.DefaultIfEmpty()
+                                                                                              join SecurityUser in _dbContext.Security_User.AsNoTracking()
+                                                                                                  on StockOnHand.CreatedUserID equals SecurityUser.ID into SecurityUserPR
+                                                                                              from SU in SecurityUserPR.DefaultIfEmpty()
 
                                                                                               select new wbm_common.DataObjects.StockOnHand.dbRowExtended
                                                                                               {
@@ -973,7 +1006,10 @@ namespace WBM_API.WBM_API_DB
                                                                                                   Stock_ProductCode = StkPR.ProductCode,
                                                                                                   Location_PublicLocationID = LPR.PublicLocationID,
                                                                                                   RateCode_RateCode = RCPR.RateCode,
-                                                                                                  StorageRateCodeFrom_PublicID = SRCPR.PublicID
+                                                                                                  StorageRateCodeFrom_PublicID = SRCPR.PublicID,
+                                                                                                  ZoneProcessing_ZoneNumber = ZPPR.ZoneNumber,
+                                                                                                  PalletType_PublicID = PTPR.PublicID,
+                                                                                                  Created_UserPublicID = SU.PublicID
                                                                                               }).ToListAsync();
 
                 if (StockOnHandDb == null)
@@ -1035,6 +1071,15 @@ namespace WBM_API.WBM_API_DB
                                                                                              join StorageRateCodeFrom in _dbContext.StorageRateCodeFrom.AsNoTracking()
                                                                                          on StockOnHand.StorageRateCodeFromID equals StorageRateCodeFrom.ID into StorageRateCodeFromPR
                                                                                              from SRCPR in StorageRateCodeFromPR.DefaultIfEmpty()
+                                                                                             join ZoneProcessing in _dbContext.ZoneProcessing.AsNoTracking()
+                                                                                                 on StockOnHand.ZoneProcessingID equals ZoneProcessing.ID into ZoneProcessingPR
+                                                                                             from ZPPR in ZoneProcessingPR.DefaultIfEmpty()
+                                                                                             join PalletType in _dbContext.PalletType.AsNoTracking()
+                                                                                                 on StockOnHand.PalletTypeID equals PalletType.ID into PalletTypePR
+                                                                                             from PTPR in PalletTypePR.DefaultIfEmpty()
+                                                                                             join SecurityUser in _dbContext.Security_User.AsNoTracking()
+                                                                                                 on StockOnHand.CreatedUserID equals SecurityUser.ID into SecurityUserPR
+                                                                                             from SU in SecurityUserPR.DefaultIfEmpty()
 
                                                                                              select new wbm_common.DataObjects.StockOnHand.dbRowExtended
                                                                                              {
@@ -1073,7 +1118,10 @@ namespace WBM_API.WBM_API_DB
                                                                                                  Stock_ProductCode = StkPR.ProductCode,
                                                                                                  Location_PublicLocationID = LPR.PublicLocationID,
                                                                                                  RateCode_RateCode = RCPR.RateCode,
-                                                                                                 StorageRateCodeFrom_PublicID = SRCPR.PublicID
+                                                                                                 StorageRateCodeFrom_PublicID = SRCPR.PublicID,
+                                                                                                 ZoneProcessing_ZoneNumber = ZPPR.ZoneNumber,
+                                                                                                 PalletType_PublicID = PTPR.PublicID,
+                                                                                                 Created_UserPublicID = SU.PublicID
                                                                                              }).ToListAsync();
 
                 return Result.Success<List<wbm_common.DataObjects.StockOnHand.dbRowExtended>>(StockOnHands);
